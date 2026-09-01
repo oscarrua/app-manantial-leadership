@@ -1,0 +1,256 @@
+<script setup>
+import { ref, computed } from 'vue'
+import { useMainStore } from '../stores/mainStore'
+import { supabase } from '../supabase'
+import { useToast } from '../composables/useToast'
+
+const store = useMainStore()
+const { showToast } = useToast()
+
+const selectedTLeader = ref('')
+const isFormOpen = ref(false)
+const isSaving = ref(false)
+
+const form = ref({
+  id: null, lider_id: null, lider_manantial: '', celular_lider: '',
+  direccion: '', barrio: '', anfitrion: '', celular_anfitrion: '',
+  dia_reunion: '', hora_reunion: '', latitud: null, longitud: null, activo: true
+})
+
+const tribeWLeaders = computed(() => {
+  if (!selectedTLeader.value) return []
+  return store.lideres.allLeadersData
+    .filter(r => r[1] === selectedTLeader.value)
+    .map(r => ({ name: r[0], id: r[2] }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+})
+
+const getManantiales = (leaderId) => store.manantiales.filter(m => m.lider_id === leaderId)
+
+const openForm = (wleader, manantial = null) => {
+  if (manantial) {
+    form.value = { ...manantial, lider_manantial: wleader.name }
+  } else {
+    form.value = { 
+      id: null, lider_id: wleader.id, lider_manantial: wleader.name, 
+      celular_lider: '', direccion: '', barrio: '', anfitrion: '', 
+      celular_anfitrion: '', dia_reunion: '', hora_reunion: '', 
+      latitud: null, longitud: null, activo: true 
+    }
+  }
+  isFormOpen.value = true
+}
+
+const updateLiderName = () => {
+  const leader = tribeWLeaders.value.find(l => l.id === form.value.lider_id)
+  if (leader) form.value.lider_manantial = leader.name
+}
+
+const submitForm = async () => {
+  isSaving.value = true
+
+  // Geocodificación Automática Cliente
+  if (!form.value.latitud || !form.value.longitud || form.value.id === null) {
+    const query = `${form.value.direccion}, Barrio ${form.value.barrio}, Palmira, Valle del Cauca, Colombia`
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY 
+
+    try {
+      const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${apiKey}`)
+      const geoData = await res.json()
+
+      if (geoData.status === 'OK' && geoData.results.length > 0) {
+        form.value.latitud = geoData.results[0].geometry.location.lat
+        form.value.longitud = geoData.results[0].geometry.location.lng
+      }
+    } catch (error) {
+      console.error('Fallo silencioso en geocodificación:', error)
+    }
+  }
+
+  // Preparación limpia del Payload
+  const payload = { ...form.value }
+  delete payload.lider_manantial 
+  
+  // SOLUCIÓN: Si es un registro nuevo, eliminamos el ID para que PostgreSQL lo genere[cite: 1]
+  if (!payload.id) {
+    delete payload.id
+  }
+  
+  const { data: { user } } = await supabase.auth.getUser()
+  payload.actualizado_por = user?.user_metadata?.full_name || user?.email || 'Sistema'
+
+  // Transacción en Supabase
+  const { error } = form.value.id 
+    ? await supabase.from('manantiales').update(payload).eq('id', form.value.id)
+    : await supabase.from('manantiales').insert(payload)
+
+  if (!error) {
+    await store.fetchData(true)
+    isFormOpen.value = false
+    const accion = form.value.id ? 'actualizado' : 'registrado'
+    showToast(`Manantial ${accion} con éxito`, 'success')
+  } else {
+    showToast(`Error al guardar: ${error.message}`, 'error')
+  }
+  isSaving.value = false
+}
+</script>
+
+<template>
+  <div class="animate-[fadeInUp_0.4s_ease-out]">
+    
+    <!-- Hero Buscador -->
+    <div class="bg-gradient-to-r from-corporate to-[#002244] p-6 rounded-2xl shadow-lg mb-8 text-white relative overflow-hidden">
+      <div class="absolute -top-10 -right-10 w-64 h-64 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
+      <div class="md:flex justify-between items-center gap-6 relative z-10">
+        <div class="mb-4 md:mb-0">
+          <h2 class="text-2xl font-extrabold mb-1">Directorio de Tribus</h2>
+          <p class="text-white/80 text-sm">Selecciona una Tribu para gestionar sus líderes y locaciones.</p>
+        </div>
+        <div class="w-full md:w-1/3">
+          <select v-model="selectedTLeader" class="w-full bg-white/10 text-white font-bold rounded-xl p-3 outline-none focus:ring-2 focus:ring-nav-accent-gold border border-white/20 backdrop-blur-sm transition-all appearance-none cursor-pointer">
+            <option value="" class="text-gray-800">Seleccione una tribu...</option>
+            <option v-for="l in store.lideres.tleaders" :key="l" :value="l" class="text-gray-800">{{ l }}</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Directorio de Tarjetas -->
+    <div v-if="selectedTLeader" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div v-if="tribeWLeaders.length === 0" class="col-span-full text-center p-12 bg-white rounded-2xl border border-dashed border-gray-300 text-gray-500 font-medium">
+        No hay líderes asignados a esta tribu.
+      </div>
+      
+      <div v-for="wleader in tribeWLeaders" :key="wleader.id" class="group bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
+        
+        <!-- Cabecera de Tarjeta Minimalista con botón (+) -->
+        <div class="p-4 border-b border-gray-50 flex justify-between items-center bg-gradient-to-b from-gray-50/50 to-white">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-corporate/10 text-corporate font-bold flex items-center justify-center shrink-0">
+              {{ wleader.name.charAt(0) }}
+            </div>
+            <h4 class="font-bold text-gray-800 leading-tight pr-2 m-0">{{ wleader.name }}</h4>
+          </div>
+          <button @click="openForm(wleader)" class="w-8 h-8 rounded-full bg-corporate text-white hover:bg-[#003366] flex items-center justify-center transition-colors shadow-sm shrink-0" title="Nuevo Manantial">
+            <span class="text-xl font-bold leading-none mb-0.5">+</span>
+          </button>
+        </div>
+
+        <!-- Lista de Manantiales -->
+        <div class="p-4 flex-1 bg-white">
+          <div v-if="getManantiales(wleader.id).length > 0" class="space-y-3">
+            <div v-for="m in getManantiales(wleader.id)" :key="m.id" class="p-4 rounded-xl border border-gray-100 bg-gray-50/50 relative overflow-hidden transition-colors" :class="m.activo ? 'hover:border-green-200' : 'opacity-75 grayscale'">
+              <div class="absolute left-0 top-0 bottom-0 w-1" :class="m.activo ? 'bg-green-500' : 'bg-red-400'"></div>
+              
+              <div class="pl-1">
+                <div class="font-bold text-sm text-gray-800 mb-0.5">{{ m.direccion }}</div>
+                <div class="text-xs text-gray-500 mb-3 font-medium">B. {{ m.barrio }} • {{ m.dia_reunion }} {{ m.hora_reunion }}</div>
+                
+                <div class="flex justify-between items-end mt-2 pt-3 border-t border-gray-200/60">
+                  <span class="text-[10px] font-bold uppercase tracking-wider" :class="m.activo ? 'text-green-600' : 'text-red-500'">
+                    {{ m.activo ? 'Activo' : 'Inactivo' }}
+                  </span>
+                  <button @click="openForm(wleader, m)" class="text-corporate bg-corporate/10 hover:bg-corporate hover:text-white px-4 py-1.5 rounded-md text-xs font-bold transition-colors">
+                    Editar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="h-full flex flex-col items-center justify-center text-center p-4">
+            <div class="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center mb-2 text-gray-300 text-xl">📍</div>
+            <p class="text-xs text-gray-400 font-medium">Sin manantiales registrados</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel Lateral Deslizante (Formulario de Edición/Creación) -->
+    <div v-if="isFormOpen" class="fixed inset-0 z-50 flex justify-end">
+      <div @click="isFormOpen = false" class="absolute inset-0 bg-black/20 backdrop-blur-sm transition-opacity"></div>
+      
+      <div class="w-full md:w-[450px] bg-white h-full shadow-2xl relative z-10 flex flex-col animate-[slideInRight_0.3s_ease-out]">
+        <div class="p-5 border-b bg-gray-50 flex justify-between items-center">
+          <h3 class="font-bold text-lg text-corporate m-0">{{ form.id ? 'Editar' : 'Nuevo' }} Manantial</h3>
+          <button @click="isFormOpen = false" class="bg-gray-200 text-gray-600 hover:bg-red-500 hover:text-white w-8 h-8 rounded-full font-bold transition-colors flex items-center justify-center">✕</button>
+        </div>
+        
+        <div class="p-6 overflow-y-auto flex-1 space-y-4 style-scrollbar">
+          
+          <!-- Reasignación de Líder -->
+          <div>
+            <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Líder Asignado</label>
+            <select v-model="form.lider_id" @change="updateLiderName" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 bg-white transition-all">
+              <option v-for="l in tribeWLeaders" :key="l.id" :value="l.id">{{ l.name }}</option>
+            </select>
+          </div>
+          
+          <div>
+            <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Celular Líder</label>
+            <input type="text" v-model="form.celular_lider" maxlength="10" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 transition-all">
+          </div>
+          <div>
+            <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Dirección Exacta</label>
+            <input type="text" v-model="form.direccion" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 transition-all">
+          </div>
+          <div>
+            <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Barrio</label>
+            <input type="text" v-model="form.barrio" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 transition-all">
+          </div>
+          
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Día</label>
+              <select v-model="form.dia_reunion" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 bg-white transition-all">
+                <option>Lunes</option><option>Martes</option><option>Miércoles</option><option>Jueves</option><option>Viernes</option><option>Sábado</option><option>Domingo</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Hora</label>
+              <input type="time" v-model="form.hora_reunion" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 transition-all">
+            </div>
+          </div>
+          
+          <div class="pt-2 border-t border-gray-100">
+            <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Nombre Anfitrión</label>
+            <input type="text" v-model="form.anfitrion" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 transition-all">
+          </div>
+          <div>
+            <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Celular Anfitrión</label>
+            <input type="text" v-model="form.celular_anfitrion" maxlength="10" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 transition-all">
+          </div>
+
+          <!-- Switch Activo/Inactivo dentro de Editar -->
+          <div v-if="form.id" class="pt-4 mt-2 border-t border-gray-100 flex justify-between items-center">
+            <span class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Estado del Manantial</span>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" v-model="form.activo" class="sr-only peer">
+              <div class="w-11 h-6 bg-red-400 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+              <span class="ml-3 text-xs font-bold" :class="form.activo ? 'text-green-600' : 'text-red-500'">{{ form.activo ? 'Activo' : 'Inactivo' }}</span>
+            </label>
+          </div>
+
+        </div>
+        
+        <div class="p-5 border-t bg-white">
+          <button @click="submitForm" :disabled="isSaving" class="w-full bg-corporate text-white font-bold py-3 rounded-xl hover:bg-[#003366] transition-all shadow-md hover:shadow-lg disabled:opacity-50 flex justify-center items-center gap-2">
+            <div v-if="isSaving" class="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white"></div>
+            {{ isSaving ? 'Guardando...' : 'Guardar Manantial' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.style-scrollbar::-webkit-scrollbar { width: 6px; }
+.style-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.style-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.style-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--color-corporate); }
+</style>

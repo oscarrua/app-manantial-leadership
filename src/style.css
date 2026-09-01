@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+@theme {
+  --color-corporate: #004c97;
+  --color-corporate-hover: #00376e;
+  --color-bg-light: #f0f2f5;
+  --color-text-main: #344767;
+  --color-accent-gold: #ffb700;
+  --color-accent-text: #002244;
+  --font-sans: "Quicksand", sans-serif;
+}
+
+body {
+  @apply bg-bg-light text-text-main font-sans min-h-screen pb-10;
+}
