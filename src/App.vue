@@ -2,9 +2,11 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from './supabase'
+import { useMainStore } from './stores/mainStore' // Nuevo
 import ToastNotification from './components/ToastNotification.vue'
 
 const router = useRouter()
+const store = useMainStore() // Nuevo
 const session = ref(null)
 const userProfile = ref({ name: '', email: '', picture: '' })
 
@@ -29,12 +31,15 @@ onMounted(() => {
   })
 })
 
-const extractProfile = (user) => {
+const extractProfile = async (user) => {
   userProfile.value = {
     name: user.user_metadata?.full_name || 'Usuario',
     email: user.email,
     picture: user.user_metadata?.avatar_url || ''
   }
+  
+  // Llamada al store para cargar roles usando el email autenticado
+  await store.loadUserPermissions(user.email)
 }
 
 const logout = async () => {
