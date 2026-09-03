@@ -184,7 +184,8 @@ const saveManagement = async () => {
 
 const formatDate = (dateStr) => {
   if (!dateStr) return 'N/A'
-  return new Date(dateStr).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })
+  const safeDate = dateStr.includes('T') ? dateStr : `${dateStr}T12:00:00`
+  return new Date(safeDate).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })
 }
 </script>
 
@@ -241,6 +242,17 @@ const formatDate = (dateStr) => {
               <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">Fecha de Visita</span>
               <span class="text-sm font-medium text-gray-800">{{ formatDate(visitor.fecha_visita) }}</span>
             </div>
+
+            <!-- NUEVO CAMPO: Registrado por -->
+            <div class="col-span-2 pt-2 border-t border-gray-50">
+              <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">Registrado por</span>
+              <div class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                <span class="text-sm font-medium text-gray-800 truncate" :title="visitor.registrado_por">{{ visitor.registrado_por || 'No especificado' }}</span>
+              </div>
+            </div>
+
+            <!-- Continuación: Selector de Estado -->
             <div class="col-span-2 pt-2 border-t border-gray-50">
               <div class="flex justify-between items-center mb-1">
                 <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">Actualizar Estado</span>
@@ -332,10 +344,30 @@ const formatDate = (dateStr) => {
                 </a>
               </div>
             </div>
-            <div><span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">Sexo / Edad</span><span class="text-sm font-medium text-gray-800">{{ visitor.sexo || '-' }} • {{ visitor.edad ? `${visitor.edad} años` : '-' }}</span></div>
-            <div class="col-span-2"><span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">Dirección</span><span class="text-sm font-medium text-gray-800">{{ visitor.direccion || 'N/A' }} ({{ visitor.barrio || 'N/A' }})</span></div>
-            <div class="col-span-2 pt-2 border-t border-gray-100"><span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">Invita</span><span class="text-sm font-medium text-gray-800">{{ visitor.quien_invita || 'N/A' }}</span></div>
-            <div class="col-span-2 pt-2 border-t border-gray-100"><span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">Petición</span><span class="text-sm font-medium italic text-gray-700">{{ visitor.peticion || 'N/A' }}</span></div>
+            <div>
+              <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">Sexo / Edad</span>
+              <span class="text-sm font-medium text-gray-800">{{ visitor.sexo || '-' }} • {{ visitor.edad ? `${visitor.edad} años` : '-' }}</span>
+            </div>
+            
+            <!-- NUEVO CAMPO: Estado Civil -->
+            <div class="col-span-2 pt-2 border-t border-gray-100">
+              <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">Estado Civil</span>
+              <span class="text-sm font-medium text-gray-800">{{ visitor.estado_civil || 'No especificado' }}</span>
+            </div>
+
+            <!-- Ajuste en Dirección para mantener el ritmo visual (se le agrega el border-t) -->
+            <div class="col-span-2 pt-2 border-t border-gray-100">
+              <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">Dirección</span>
+              <span class="text-sm font-medium text-gray-800">{{ visitor.direccion || 'N/A' }} ({{ visitor.barrio || 'N/A' }})</span>
+            </div>
+            <div class="col-span-2 pt-2 border-t border-gray-100">
+              <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">Invita</span>
+              <span class="text-sm font-medium text-gray-800">{{ visitor.quien_invita || 'N/A' }}</span>
+            </div>
+            <div class="col-span-2 pt-2 border-t border-gray-100">
+              <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">Petición</span>
+              <span class="text-sm font-medium italic text-gray-700">{{ visitor.peticion || 'N/A' }}</span>
+            </div>
           </div>
         </details>
 

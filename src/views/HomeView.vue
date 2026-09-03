@@ -34,7 +34,9 @@ const availableWLeaders = computed(() => {
 
 const formatDate = (dateStr) => {
   if (!dateStr) return ''
-  return new Date(dateStr).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })
+  // Inyectamos mediodía si la fecha viene de Supabase sin marca de tiempo
+  const safeDate = dateStr.includes('T') ? dateStr : `${dateStr}T12:00:00`
+  return new Date(safeDate).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })
 }
 </script>
 
