@@ -30,8 +30,12 @@ export const useMainStore = defineStore('main', () => {
   async function fetchData() {
     isLoading.value = true
     
-    // 1. Cargar Lideres
-    const { data: dataLideres } = await supabase.from('lideres').select('id, lider_tribu, lider_manantial')
+    // 1. Cargar Lideres (Filtrando inactivos)
+    const { data: dataLideres } = await supabase
+      .from('lideres')
+      .select('id, lider_tribu, lider_manantial')
+      .eq('estado', true) // <-- Este es el nuevo filtro
+
     if (dataLideres) {
       const tleaders = [...new Set(dataLideres.map(i => i.lider_tribu).filter(Boolean))].sort()
       const wleaders = [...new Set(dataLideres.map(i => i.lider_manantial).filter(Boolean))].sort()
