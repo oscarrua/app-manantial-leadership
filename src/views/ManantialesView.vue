@@ -46,11 +46,34 @@ const updateLiderName = () => {
   if (leader) form.value.lider_manantial = leader.name
 }
 
+// Nueva Función: Captura de GPS Nativo
+const capturarGPS = () => {
+  if (!navigator.geolocation) {
+    return showToast('GPS no soportado en este dispositivo', 'error')
+  }
+  
+  showToast('Calculando ubicación...', 'success')
+  
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      form.value.latitud = Number(pos.coords.latitude.toFixed(6))
+      form.value.longitud = Number(pos.coords.longitude.toFixed(6))
+      showToast('Ubicación exacta capturada', 'success')
+    },
+    (err) => {
+      showToast('Permiso GPS denegado o señal débil', 'error')
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  )
+}
+
 const submitForm = async () => {
+  // Barrera Anti-Spam (Protege la base de datos y la API de Maps)
+  if (isSaving.value) return 
   isSaving.value = true
 
   // Geocodificación Automática Cliente
-  if (!form.value.latitud || !form.value.longitud || form.value.id === null) {
+  if (!form.value.latitud || !form.value.longitud) {
     const query = `${form.value.direccion}, Barrio ${form.value.barrio}, Palmira, Valle del Cauca, Colombia`
     const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY 
 
@@ -61,6 +84,8 @@ const submitForm = async () => {
       if (geoData.status === 'OK' && geoData.results.length > 0) {
         form.value.latitud = geoData.results[0].geometry.location.lat
         form.value.longitud = geoData.results[0].geometry.location.lng
+      } else {
+        console.warn('Detalle del rechazo de Google:', geoData)
       }
     } catch (error) {
       console.error('Fallo silencioso en geocodificación:', error)
@@ -71,7 +96,6 @@ const submitForm = async () => {
   const payload = { ...form.value }
   delete payload.lider_manantial 
   
-  // SOLUCIÓN: Si es un registro nuevo, eliminamos el ID para que PostgreSQL lo genere[cite: 1]
   if (!payload.id) {
     delete payload.id
   }
@@ -138,29 +162,47 @@ const submitForm = async () => {
         </div>
 
         <!-- Lista de Manantiales -->
-        <div class="p-4 flex-1 bg-white">
-          <div v-if="getManantiales(wleader.id).length > 0" class="space-y-3">
-            <div v-for="m in getManantiales(wleader.id)" :key="m.id" class="p-4 rounded-xl border border-gray-100 bg-gray-50/50 relative overflow-hidden transition-colors" :class="m.activo ? 'hover:border-green-200' : 'opacity-75 grayscale'">
-              <div class="absolute left-0 top-0 bottom-0 w-1" :class="m.activo ? 'bg-green-500' : 'bg-red-400'"></div>
+        <div class="p-3 flex-1 bg-white">
+          <div v-if="getManantiales(wleader.id).length > 0" class="space-y-2.5">
+            <div v-for="m in getManantiales(wleader.id)" :key="m.id" class="p-3 rounded-xl border border-gray-100 bg-gray-50/50 relative overflow-hidden transition-colors flex flex-col justify-between" :class="m.activo ? 'hover:border-green-200' : 'opacity-75 grayscale'">
+              <!-- Indicador de color lateral reforzado -->
+              <div class="absolute left-0 top-0 bottom-0 w-1.5" :class="m.activo ? 'bg-green-500' : 'bg-red-400'"></div>
               
-              <div class="pl-1">
-                <div class="font-bold text-sm text-gray-800 mb-0.5">{{ m.direccion }}</div>
-                <div class="text-xs text-gray-500 mb-3 font-medium">B. {{ m.barrio }} • {{ m.dia_reunion }} {{ m.hora_reunion }}</div>
-                
-                <div class="flex justify-between items-end mt-2 pt-3 border-t border-gray-200/60">
-                  <span class="text-[10px] font-bold uppercase tracking-wider" :class="m.activo ? 'text-green-600' : 'text-red-500'">
-                    {{ m.activo ? 'Activo' : 'Inactivo' }}
-                  </span>
-                  <button @click="openForm(wleader, m)" class="text-corporate bg-corporate/10 hover:bg-corporate hover:text-white px-4 py-1.5 rounded-md text-xs font-bold transition-colors">
-                    Editar
-                  </button>
+              <div class="pl-2 flex justify-between items-start gap-3">
+                <div class="overflow-hidden w-full">
+                  
+                  <div class="flex items-center gap-2">
+                    <div class="font-bold text-sm text-gray-800 leading-tight truncate">{{ m.direccion }}</div>
+                    <!-- Mini enlace a mapa si hay coordenadas -->
+                    <a v-if="m.latitud && m.longitud" 
+                       :href="`https://maps.google.com/?q=${m.latitud},${m.longitud}`" 
+                       target="_blank" rel="noopener noreferrer"
+                       class="text-blue-500 hover:text-blue-700 transition-colors shrink-0"
+                       title="Ver en mapa">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.242-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    </a>
+                  </div>
+                  
+                  <div class="text-[11px] text-gray-500 mt-0.5 font-medium truncate">B. {{ m.barrio }} • {{ m.dia_reunion }} {{ m.hora_reunion }}</div>
+                  
+                  <!-- Indicador de Coordenadas (NUEVO) -->
+                  <div class="mt-1 flex items-center gap-1 text-[9px] font-mono" :class="m.latitud ? 'text-gray-400' : 'text-red-400/80'">
+                    <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    {{ m.latitud && m.longitud ? `${m.latitud.toFixed(4)}, ${m.longitud.toFixed(4)}` : 'Sin GPS' }}
+                  </div>
+
                 </div>
+                
+                <!-- Botón Editar Compacto (Icono) -->
+                <button @click="openForm(wleader, m)" class="text-corporate bg-corporate/10 hover:bg-corporate hover:text-white p-1.5 rounded-md transition-colors shrink-0 active:scale-95 shadow-sm" title="Editar Manantial">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                </button>
               </div>
             </div>
           </div>
           <div v-else class="h-full flex flex-col items-center justify-center text-center p-4">
-            <div class="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center mb-2 text-gray-300 text-xl">📍</div>
-            <p class="text-xs text-gray-400 font-medium">Sin manantiales registrados</p>
+            <div class="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center mb-2 text-gray-300 text-lg">📍</div>
+            <p class="text-xs text-gray-400 font-medium">Sin manantiales</p>
           </div>
         </div>
       </div>
@@ -219,6 +261,21 @@ const submitForm = async () => {
           <div>
             <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Celular Anfitrión</label>
             <input type="text" v-model="form.celular_anfitrion" maxlength="10" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 transition-all">
+          </div>
+
+          <!-- Nueva Sección de Coordenadas con Captura GPS -->
+          <div class="pt-2 border-t border-gray-100">
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Coordenadas</span>
+              <button type="button" @click="capturarGPS" class="flex items-center gap-1 text-[10px] bg-blue-50 text-corporate px-2 py-1 rounded font-bold border border-blue-100 hover:bg-corporate hover:text-white transition-colors active:scale-95 shadow-sm">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.242-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                Usar mi GPS
+              </button>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <input type="number" step="any" v-model="form.latitud" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 transition-all text-sm" placeholder="Latitud">
+              <input type="number" step="any" v-model="form.longitud" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 transition-all text-sm" placeholder="Longitud">
+            </div>
           </div>
 
           <!-- Switch Activo/Inactivo dentro de Editar -->
