@@ -124,7 +124,16 @@ const submitForm = async () => {
 
             <div>
               <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Teléfono *</label>
-              <input type="text" v-model="form.telefono" @input="validatePhone" placeholder="Ej: 3001234567" required class="w-full text-sm border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 transition-all">
+              <input 
+                type="tel" 
+                inputmode="numeric" 
+                pattern="[0-9]*"
+                v-model="form.telefono" 
+                @input="validatePhone" 
+                placeholder="Ej: 3001234567" 
+                required 
+                class="w-full text-sm border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 transition-all"
+              >
               
               <!-- Contador con retroalimentación de color dinámica -->
               <span 
