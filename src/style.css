@@ -13,3 +13,55 @@
 body {
   @apply bg-bg-light text-text-main font-sans min-h-screen pb-10;
 }
+
+/* ==========================================
+   ESTILOS GLOBALES - UX Y ANIMACIONES
+   ========================================== */
+
+/* Barra de desplazamiento personalizada (Scrollbar) */
+.style-scrollbar::-webkit-scrollbar { 
+  width: 6px; 
+}
+.style-scrollbar::-webkit-scrollbar-track { 
+  background: transparent; 
+}
+.style-scrollbar::-webkit-scrollbar-thumb { 
+  background: #cbd5e1; 
+  border-radius: 4px; 
+}
+.style-scrollbar::-webkit-scrollbar-thumb:hover { 
+  background: var(--color-corporate); 
+}
+
+/* Animación de entrada de paneles laterales */
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+/* Transición fluida para modales y menús desplegables */
+.slide-fade-enter-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.slide-fade-leave-active {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  transform: translateY(-15px);
+  opacity: 0;
+}
+
+/* Transiciones genéricas de opacidad */
+.fade-enter-active, .fade-leave-active { 
+  transition: opacity 0.2s ease; 
+}
+.fade-enter-from, .fade-leave-to { 
+  opacity: 0; 
+}
+
+/* Animación de entrada hacia arriba (Global) */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}

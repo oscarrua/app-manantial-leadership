@@ -141,18 +141,3 @@ const closeMenu = () => isMobileMenuOpen.value = false
   <ToastNotification />
   <ConfirmModal />
 </template>
-
-<style scoped>
-/* Transición para el menú móvil */
-.slide-fade-enter-active {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.slide-fade-leave-active {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.slide-fade-enter-from,
-.slide-fade-leave-to {
-  transform: translateY(-15px);
-  opacity: 0;
-}
-</style>

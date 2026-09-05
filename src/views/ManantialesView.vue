@@ -215,7 +215,7 @@ const submitForm = async () => {
     </div>
 
     <!-- Panel Lateral Deslizante (Formulario de Edición/Creación) -->
-    <div v-if="isFormOpen" class="fixed inset-0 z-50 flex justify-end">
+    <div v-if="isFormOpen" class="fixed inset-0 z-[60] flex justify-end">
       <div @click="isFormOpen = false" class="absolute inset-0 bg-black/20 backdrop-blur-sm transition-opacity"></div>
       
       <div class="w-full md:w-[450px] bg-white h-full shadow-2xl relative z-10 flex flex-col animate-[slideInRight_0.3s_ease-out]">
@@ -324,14 +324,3 @@ const submitForm = async () => {
     </div>
   </div>
 </template>
-
-<style scoped>
-@keyframes slideInRight {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
-}
-.style-scrollbar::-webkit-scrollbar { width: 6px; }
-.style-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.style-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-.style-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--color-corporate); }
-</style>

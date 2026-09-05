@@ -171,10 +171,3 @@ const formatDate = (dateStr) => {
     <RegistroComponent v-if="isRegistroOpen" @close="isRegistroOpen = false" />
   </div>
 </template>
-
-<style scoped>
-.style-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
-.style-scrollbar::-webkit-scrollbar-track { background: #f8f9fa; }
-.style-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-.style-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--color-corporate); }
-</style>

@@ -90,10 +90,10 @@ const submitForm = async () => {
 <template>
   <div>
     <!-- Fondo oscuro (backdrop) -->
-    <div @click="emit('close')" class="fixed inset-0 bg-black/40 z-40 transition-opacity backdrop-blur-sm"></div>
+    <div @click="emit('close')" class="fixed inset-0 bg-black/40 z-[55] transition-opacity backdrop-blur-sm"></div>
     
     <!-- Panel Lateral Deslizante -->
-    <div class="fixed top-0 right-0 h-full w-full md:w-[500px] bg-[#f8f9fa] shadow-2xl z-50 transform transition-transform duration-300 flex flex-col animate-[slideInRight_0.3s_ease-out]">
+    <div class="fixed top-0 right-0 h-full w-full md:w-[500px] bg-[#f8f9fa] shadow-2xl z-[60] transform transition-transform duration-300 flex flex-col animate-[slideInRight_0.3s_ease-out]">
       
       <!-- Cabecera Tematizada (Estilo Hero) -->
       <div class="flex justify-between items-center p-5 bg-gradient-to-r from-corporate to-[#002244] shadow-md text-white relative overflow-hidden">
@@ -239,14 +239,3 @@ const submitForm = async () => {
     </div>
   </div>
 </template>
-
-<style scoped>
-@keyframes slideInRight {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
-}
-.style-scrollbar::-webkit-scrollbar { width: 6px; }
-.style-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.style-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-.style-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--color-corporate); }
-</style>

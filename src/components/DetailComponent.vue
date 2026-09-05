@@ -180,10 +180,10 @@ const formatDate = (dateStr) => {
 <template>
   <div>
     <!-- Fondo oscuro -->
-    <div v-if="visitorId" @click="emit('close-detail')" class="fixed inset-0 bg-black/20 z-40 transition-opacity backdrop-blur-sm"></div>
+    <div v-if="visitorId" @click="emit('close-detail')" class="fixed inset-0 bg-black/20 z-[55] transition-opacity backdrop-blur-sm"></div>
     
     <!-- Panel Lateral -->
-    <div class="fixed top-0 right-0 h-full w-full md:w-[500px] bg-[#f8f9fa] shadow-2xl z-50 transform transition-transform duration-300 flex flex-col"
+    <div class="fixed top-0 right-0 h-full w-full md:w-[500px] bg-[#f8f9fa] shadow-2xl z-[60] transform transition-transform duration-300 flex flex-col"
          :class="visitorId ? 'translate-x-0' : 'translate-x-full'">
       
       <!-- Cabecera -->
@@ -484,23 +484,3 @@ const formatDate = (dateStr) => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.style-scrollbar::-webkit-scrollbar { width: 6px; }
-.style-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.style-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-.style-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--color-corporate); }
-
-/* Animación para el formulario desplegable */
-.slide-fade-enter-active {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.slide-fade-leave-active {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.slide-fade-enter-from,
-.slide-fade-leave-to {
-  transform: translateY(-10px);
-  opacity: 0;
-}
-</style>
