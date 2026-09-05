@@ -148,21 +148,6 @@ const closeMenu = () => isMobileMenuOpen.value = false
   <ConfirmModal />
 </template>
 
-<style scoped>
-/* Transición para el menú móvil */
-.slide-fade-enter-active {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.slide-fade-leave-active {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.slide-fade-enter-from,
-.slide-fade-leave-to {
-  transform: translateY(-15px);
-  opacity: 0;
-}
-</style>
-
 ==================================================
 --- ARCHIVO: ./src\main.js ---
 ==================================================
@@ -198,6 +183,58 @@ app.mount('#app')
 
 body {
   @apply bg-bg-light text-text-main font-sans min-h-screen pb-10;
+}
+
+/* ==========================================
+   ESTILOS GLOBALES - UX Y ANIMACIONES
+   ========================================== */
+
+/* Barra de desplazamiento personalizada (Scrollbar) */
+.style-scrollbar::-webkit-scrollbar { 
+  width: 6px; 
+}
+.style-scrollbar::-webkit-scrollbar-track { 
+  background: transparent; 
+}
+.style-scrollbar::-webkit-scrollbar-thumb { 
+  background: #cbd5e1; 
+  border-radius: 4px; 
+}
+.style-scrollbar::-webkit-scrollbar-thumb:hover { 
+  background: var(--color-corporate); 
+}
+
+/* Animación de entrada de paneles laterales */
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+/* Transición fluida para modales y menús desplegables */
+.slide-fade-enter-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.slide-fade-leave-active {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  transform: translateY(-15px);
+  opacity: 0;
+}
+
+/* Transiciones genéricas de opacidad */
+.fade-enter-active, .fade-leave-active { 
+  transition: opacity 0.2s ease; 
+}
+.fade-enter-from, .fade-leave-to { 
+  opacity: 0; 
+}
+
+/* Animación de entrada hacia arriba (Global) */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 ==================================================
@@ -629,11 +666,6 @@ const { confirmState, resolve } = useConfirm()
   </transition>
 </template>
 
-<style scoped>
-.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
-</style>
-
 ==================================================
 --- ARCHIVO: ./src\components\DetailComponent.vue ---
 ==================================================
@@ -820,10 +852,10 @@ const formatDate = (dateStr) => {
 <template>
   <div>
     <!-- Fondo oscuro -->
-    <div v-if="visitorId" @click="emit('close-detail')" class="fixed inset-0 bg-black/20 z-40 transition-opacity backdrop-blur-sm"></div>
+    <div v-if="visitorId" @click="emit('close-detail')" class="fixed inset-0 bg-black/20 z-[55] transition-opacity backdrop-blur-sm"></div>
     
     <!-- Panel Lateral -->
-    <div class="fixed top-0 right-0 h-full w-full md:w-[500px] bg-[#f8f9fa] shadow-2xl z-50 transform transition-transform duration-300 flex flex-col"
+    <div class="fixed top-0 right-0 h-full w-full md:w-[500px] bg-[#f8f9fa] shadow-2xl z-[60] transform transition-transform duration-300 flex flex-col"
          :class="visitorId ? 'translate-x-0' : 'translate-x-full'">
       
       <!-- Cabecera -->
@@ -1125,26 +1157,6 @@ const formatDate = (dateStr) => {
   </div>
 </template>
 
-<style scoped>
-.style-scrollbar::-webkit-scrollbar { width: 6px; }
-.style-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.style-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-.style-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--color-corporate); }
-
-/* Animación para el formulario desplegable */
-.slide-fade-enter-active {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.slide-fade-leave-active {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.slide-fade-enter-from,
-.slide-fade-leave-to {
-  transform: translateY(-10px);
-  opacity: 0;
-}
-</style>
-
 ==================================================
 --- ARCHIVO: ./src\components\RegistroComponent.vue ---
 ==================================================
@@ -1241,10 +1253,10 @@ const submitForm = async () => {
 <template>
   <div>
     <!-- Fondo oscuro (backdrop) -->
-    <div @click="emit('close')" class="fixed inset-0 bg-black/40 z-40 transition-opacity backdrop-blur-sm"></div>
+    <div @click="emit('close')" class="fixed inset-0 bg-black/40 z-[55] transition-opacity backdrop-blur-sm"></div>
     
     <!-- Panel Lateral Deslizante -->
-    <div class="fixed top-0 right-0 h-full w-full md:w-[500px] bg-[#f8f9fa] shadow-2xl z-50 transform transition-transform duration-300 flex flex-col animate-[slideInRight_0.3s_ease-out]">
+    <div class="fixed top-0 right-0 h-full w-full md:w-[500px] bg-[#f8f9fa] shadow-2xl z-[60] transform transition-transform duration-300 flex flex-col animate-[slideInRight_0.3s_ease-out]">
       
       <!-- Cabecera Tematizada (Estilo Hero) -->
       <div class="flex justify-between items-center p-5 bg-gradient-to-r from-corporate to-[#002244] shadow-md text-white relative overflow-hidden">
@@ -1390,17 +1402,6 @@ const submitForm = async () => {
     </div>
   </div>
 </template>
-
-<style scoped>
-@keyframes slideInRight {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
-}
-.style-scrollbar::-webkit-scrollbar { width: 6px; }
-.style-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.style-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-.style-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--color-corporate); }
-</style>
 
 ==================================================
 --- ARCHIVO: ./src\components\ToastNotification.vue ---
@@ -1769,13 +1770,6 @@ const formatDate = (dateStr) => {
   </div>
 </template>
 
-<style scoped>
-.style-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
-.style-scrollbar::-webkit-scrollbar-track { background: #f8f9fa; }
-.style-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-.style-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--color-corporate); }
-</style>
-
 ==================================================
 --- ARCHIVO: ./src\views\LoginView.vue ---
 ==================================================
@@ -1826,13 +1820,6 @@ const loginWithGoogle = async () => {
     </div>
   </div>
 </template>
-
-<style scoped>
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(30px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-</style>
 
 ==================================================
 --- ARCHIVO: ./src\views\ManantialesView.vue ---
@@ -2055,7 +2042,7 @@ const submitForm = async () => {
     </div>
 
     <!-- Panel Lateral Deslizante (Formulario de Edición/Creación) -->
-    <div v-if="isFormOpen" class="fixed inset-0 z-50 flex justify-end">
+    <div v-if="isFormOpen" class="fixed inset-0 z-[60] flex justify-end">
       <div @click="isFormOpen = false" class="absolute inset-0 bg-black/20 backdrop-blur-sm transition-opacity"></div>
       
       <div class="w-full md:w-[450px] bg-white h-full shadow-2xl relative z-10 flex flex-col animate-[slideInRight_0.3s_ease-out]">
@@ -2164,17 +2151,6 @@ const submitForm = async () => {
     </div>
   </div>
 </template>
-
-<style scoped>
-@keyframes slideInRight {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
-}
-.style-scrollbar::-webkit-scrollbar { width: 6px; }
-.style-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.style-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-.style-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--color-corporate); }
-</style>
 
 ==================================================
 --- ARCHIVO: ./vite.config.js ---
