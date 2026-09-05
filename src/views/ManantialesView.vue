@@ -230,7 +230,15 @@ const submitForm = async () => {
           
           <div>
             <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Celular Líder</label>
-            <input type="text" v-model="form.celular_lider" maxlength="10" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 transition-all">
+            <input 
+              type="tel" 
+              inputmode="numeric" 
+              pattern="[0-9]*"
+              v-model="form.celular_lider" 
+              maxlength="10" 
+              class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 transition-all"
+              placeholder="Ej: 3001234567"
+            >
           </div>
           <div>
             <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Dirección Exacta</label>
@@ -260,7 +268,15 @@ const submitForm = async () => {
           </div>
           <div>
             <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Celular Anfitrión</label>
-            <input type="text" v-model="form.celular_anfitrion" maxlength="10" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 transition-all">
+            <input 
+              type="tel" 
+              inputmode="numeric" 
+              pattern="[0-9]*"
+              v-model="form.celular_anfitrion" 
+              maxlength="10" 
+              class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 transition-all"
+              placeholder="Ej: 3001234567"
+            >
           </div>
 
           <!-- Nueva Sección de Coordenadas con Captura GPS -->
