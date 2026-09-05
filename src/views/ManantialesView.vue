@@ -67,6 +67,12 @@ const capturarGPS = () => {
   )
 }
 
+const validatePhone = (e, field) => {
+  let val = e.target.value.replace(/\D/g, '')
+  if (val.length > 10) val = val.slice(0, 10)
+  form.value[field] = val
+}
+
 const submitForm = async () => {
   // Barrera Anti-Spam (Protege la base de datos y la API de Maps)
   if (isSaving.value) return 
@@ -235,6 +241,7 @@ const submitForm = async () => {
               inputmode="numeric" 
               pattern="[0-9]*"
               v-model="form.celular_lider" 
+              @input="validatePhone($event, 'celular_lider')"
               maxlength="10" 
               class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 transition-all"
               placeholder="Ej: 3001234567"
@@ -273,6 +280,7 @@ const submitForm = async () => {
               inputmode="numeric" 
               pattern="[0-9]*"
               v-model="form.celular_anfitrion" 
+              @input="validatePhone($event, 'celular_anfitrion')"
               maxlength="10" 
               class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 transition-all"
               placeholder="Ej: 3001234567"
