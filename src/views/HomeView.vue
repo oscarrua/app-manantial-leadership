@@ -2,11 +2,12 @@
 import { ref, computed, onMounted } from 'vue'
 import { useMainStore } from '../stores/mainStore'
 import DetailComponent from '../components/DetailComponent.vue'
+import RegistroComponent from '../components/RegistroComponent.vue'
 
 const store = useMainStore()
-
 const filters = ref({ tleader: '', wleader: '' })
 const selectedVisitorId = ref(null)
+const isRegistroOpen = ref(false)
 
 onMounted(() => {
   store.fetchData()
@@ -66,6 +67,15 @@ const formatDate = (dateStr) => {
 
         <!-- Filtros Rápidos (Tribus y Manantiales) -->
         <div class="w-full xl:w-auto flex flex-col sm:flex-row gap-2.5">
+          <button 
+            v-if="store.userPermissions?.puede_crear" 
+            @click="isRegistroOpen = true"
+            class="w-full sm:w-auto bg-accent-gold text-accent-text font-extrabold px-5 py-2.5 rounded-xl shadow-md hover:scale-[1.02] active:scale-95 transition-transform flex items-center justify-center gap-2"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+            Nuevo Registro
+          </button>
+
           <select 
             v-model="filters.tleader" 
             @change="filters.wleader = ''" 
@@ -157,6 +167,8 @@ const formatDate = (dateStr) => {
 
     <!-- Componente Modal Deslizante -->
     <DetailComponent :visitor-id="selectedVisitorId" @close-detail="selectedVisitorId = null" />
+    <!-- NUEVO: Panel de Creación -->
+    <RegistroComponent v-if="isRegistroOpen" @close="isRegistroOpen = false" />
   </div>
 </template>
 

@@ -3,12 +3,13 @@ import { ref, watch, computed } from 'vue'
 import { supabase } from '../supabase'
 import { useMainStore } from '../stores/mainStore'
 import { useToast } from '../composables/useToast'
-import Swal from 'sweetalert2' // Importamos SweetAlert2
+import { useConfirm } from '../composables/useConfirm'
 
 const props = defineProps(['visitorId'])
 const emit = defineEmits(['close-detail'])
 const store = useMainStore()
 const { showToast } = useToast()
+const { showConfirm } = useConfirm()
 const isUpdatingLider = ref(false)
 
 // Filtra manantiales según la tribu seleccionada
@@ -94,39 +95,28 @@ const updateObservacion = async () => {
   isUpdatingObservacion.value = false
 }
 
-// NUEVO: Función para actualizar el estado reactivamente
+// NUEVO: Función para actualizar el estado reactivamente con Modal Nativo
 const updateEstado = async (event) => {
   const newEstado = event.target.value
-  const oldEstado = store.consolidaciones.find(c => c.id === props.visitorId)?.estado
+  // Como ya no hay v-model, visitor retiene el valor original de manera segura
+  const oldEstado = visitor.value.estado 
   const isClosing = estadosCierre.includes(newEstado)
 
-  // 1. Si es un estado de cierre, mostrar modal de confirmación
   if (isClosing) {
-    const result = await Swal.fire({
+    const result = await showConfirm({
       title: '¿Cerrar consolidación?',
-      html: `Estás a punto de cambiar el estado a <b>"${newEstado}"</b>.<br><br>Una vez guardado, este registro se considerará finalizado y <b>desaparecerá de tu lista principal</b>.`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#004c97', // corporate
-      cancelButtonColor: '#ef4444',
-      confirmButtonText: 'Sí, cerrar registro',
-      cancelButtonText: 'Cancelar',
-      reverseButtons: true, // Mejor UX en móviles: Cancelar a la izquierda, Acción a la derecha
-      customClass: {
-        popup: 'rounded-2xl',
-        confirmButton: 'rounded-lg font-bold',
-        cancelButton: 'rounded-lg font-bold'
-      }
+      message: `Estás a punto de cambiar el estado a <b>"${newEstado}"</b>.<br><br>Una vez guardado, este registro se considerará finalizado y <b>desaparecerá de tu lista principal</b>.`,
+      confirmText: 'Sí, cerrar registro',
+      cancelText: 'Cancelar'
     })
 
-    // Si cancela, revertimos visualmente el select
-    if (!result.isConfirmed) {
-      visitor.value.estado = oldEstado
+    if (!result) {
+      // Revertimos visualmente el selector nativo al estado anterior
+      event.target.value = oldEstado
       return
     }
   }
 
-  // 2. Proceder a actualizar
   isUpdatingEstado.value = true
 
   const { error } = await supabase
@@ -136,19 +126,17 @@ const updateEstado = async (event) => {
 
   if (!error) {
     if (isClosing) {
-      // Si se cerró, lo sacamos del store para que desaparezca visualmente de la tabla de fondo
       store.consolidaciones = store.consolidaciones.filter(c => c.id !== props.visitorId)
       showToast('Consolidación cerrada y archivada', 'success')
-      emit('close-detail') // Cerramos el panel lateral
+      emit('close-detail') 
     } else {
-      // Si solo es 'En proceso' actualizamos el store silenciosamente
       showToast(`Estado actualizado a: ${newEstado}`, 'success')
-      const visitorInStore = store.consolidaciones.find(c => c.id === props.visitorId)
-      if (visitorInStore) visitorInStore.estado = newEstado
+      // Aplicamos la mutación en el modelo local tras el éxito en base de datos
+      visitor.value.estado = newEstado
     }
   } else {
     showToast(`Error al actualizar estado: ${error.message}`, 'error')
-    visitor.value.estado = oldEstado // Revertir en caso de error
+    event.target.value = oldEstado 
   }
   
   isUpdatingEstado.value = false
@@ -199,11 +187,13 @@ const formatDate = (dateStr) => {
          :class="visitorId ? 'translate-x-0' : 'translate-x-full'">
       
       <!-- Cabecera -->
-      <div class="flex justify-between items-center p-4 border-b bg-white shadow-sm">
-        <h5 class="font-bold text-corporate text-lg flex items-center gap-2 m-0">
+      <!-- Cabecera Tematizada (Estilo Hero) -->
+      <div class="flex justify-between items-center p-5 bg-gradient-to-r from-corporate to-[#002244] shadow-md text-white relative overflow-hidden">
+        <div class="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+        <h5 class="font-bold text-lg flex items-center gap-2 m-0 relative z-10">
           Detalle de Consolidación
         </h5>
-        <button @click="emit('close-detail')" class="bg-gray-100 text-gray-500 w-8 h-8 rounded-full flex justify-center items-center hover:bg-red-500 hover:text-white transition-colors active:scale-95">
+        <button @click="emit('close-detail')" class="bg-white/10 text-white hover:bg-red-500 w-8 h-8 rounded-full flex justify-center items-center transition-colors shadow-sm relative z-10 backdrop-blur-sm active:scale-95">
           ✕
         </button>
       </div>
@@ -264,7 +254,7 @@ const formatDate = (dateStr) => {
               
               <div class="relative">
                 <select
-                  v-model="visitor.estado"
+                  :value="visitor.estado"
                   @change="updateEstado"
                   :disabled="isUpdatingEstado || !store.userPermissions.puede_cerrar"
                   class="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm font-bold rounded-lg focus:ring-2 focus:ring-corporate focus:border-corporate block p-2.5 appearance-none pr-8 transition-all shadow-sm outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"

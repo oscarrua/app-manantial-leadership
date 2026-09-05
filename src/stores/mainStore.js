@@ -8,13 +8,12 @@ export const useMainStore = defineStore('main', () => {
   const lideres = ref({ tleaders: [], wleaders: [], allLeadersData: [] })
   const isLoading = ref(false)
   
-  // NUEVO: Estado para los permisos del usuario actual
-  const userPermissions = ref({ puede_cerrar: false, puede_asignar: false, rol: 'lider_basico' })
+  const userPermissions = ref({ puede_cerrar: false, puede_asignar: false, puede_crear: false, rol: 'lider_basico' })
 
   async function loadUserPermissions(email) {
     const { data } = await supabase
       .from('roles_usuarios')
-      .select('rol, puede_cerrar_consolidacion, puede_asignar')
+      .select('rol, puede_cerrar_consolidacion, puede_asignar, puede_crear')
       .eq('email', email)
       .single()
       
@@ -22,6 +21,7 @@ export const useMainStore = defineStore('main', () => {
       userPermissions.value = {
         puede_cerrar: data.puede_cerrar_consolidacion,
         puede_asignar: data.puede_asignar,
+        puede_crear: data.puede_crear,
         rol: data.rol
       }
     }

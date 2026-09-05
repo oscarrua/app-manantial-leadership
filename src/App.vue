@@ -2,8 +2,9 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from './supabase'
-import { useMainStore } from './stores/mainStore' // Nuevo
+import { useMainStore } from './stores/mainStore'
 import ToastNotification from './components/ToastNotification.vue'
+import ConfirmModal from './components/ConfirmModal.vue'
 
 const router = useRouter()
 const store = useMainStore() // Nuevo
@@ -138,6 +139,7 @@ const closeMenu = () => isMobileMenuOpen.value = false
   <router-view v-else></router-view>
 
   <ToastNotification />
+  <ConfirmModal />
 </template>
 
 <style scoped>

@@ -8,8 +8,9 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from './supabase'
-import { useMainStore } from './stores/mainStore' // Nuevo
+import { useMainStore } from './stores/mainStore'
 import ToastNotification from './components/ToastNotification.vue'
+import ConfirmModal from './components/ConfirmModal.vue'
 
 const router = useRouter()
 const store = useMainStore() // Nuevo
@@ -144,6 +145,7 @@ const closeMenu = () => isMobileMenuOpen.value = false
   <router-view v-else></router-view>
 
   <ToastNotification />
+  <ConfirmModal />
 </template>
 
 <style scoped>
@@ -435,18 +437,21 @@ export type Database = {
           email: string
           puede_asignar: boolean | null
           puede_cerrar_consolidacion: boolean | null
+          puede_crear: boolean | null
           rol: string
         }
         Insert: {
           email: string
           puede_asignar?: boolean | null
           puede_cerrar_consolidacion?: boolean | null
+          puede_crear?: boolean | null
           rol?: string
         }
         Update: {
           email?: string
           puede_asignar?: boolean | null
           puede_cerrar_consolidacion?: boolean | null
+          puede_crear?: boolean | null
           rol?: string
         }
         Relationships: []
@@ -475,12 +480,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -504,11 +509,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -529,11 +534,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -554,11 +559,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -571,11 +576,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -592,6 +597,44 @@ export const Constants = {
 
 
 ==================================================
+--- ARCHIVO: ./src\components\ConfirmModal.vue ---
+==================================================
+
+<script setup>
+import { useConfirm } from '../composables/useConfirm'
+const { confirmState, resolve } = useConfirm()
+</script>
+
+<template>
+  <transition name="fade">
+    <div v-if="confirmState.isOpen" class="fixed inset-0 z-[9999] flex items-center justify-center px-4">
+      <!-- Backdrop -->
+      <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="resolve(false)"></div>
+      
+      <!-- Modal -->
+      <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-[fadeInUp_0.2s_ease-out]">
+        <h3 class="text-xl font-extrabold text-corporate mb-2">{{ confirmState.title }}</h3>
+        <p class="text-gray-600 text-sm mb-6 whitespace-pre-wrap" v-html="confirmState.message"></p>
+        
+        <div class="flex gap-3 justify-end">
+          <button @click="resolve(false)" class="px-4 py-2 rounded-lg font-bold text-gray-500 bg-gray-100 hover:bg-gray-200 transition-colors active:scale-95">
+            {{ confirmState.cancelText }}
+          </button>
+          <button @click="resolve(true)" class="px-4 py-2 rounded-lg font-bold text-white bg-corporate hover:bg-[#003366] shadow-md transition-colors active:scale-95">
+            {{ confirmState.confirmText }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </transition>
+</template>
+
+<style scoped>
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+</style>
+
+==================================================
 --- ARCHIVO: ./src\components\DetailComponent.vue ---
 ==================================================
 
@@ -600,7 +643,7 @@ import { ref, watch, computed } from 'vue'
 import { supabase } from '../supabase'
 import { useMainStore } from '../stores/mainStore'
 import { useToast } from '../composables/useToast'
-import Swal from 'sweetalert2' // Importamos SweetAlert2
+import { useConfirm } from '../composables/useConfirm'
 
 const props = defineProps(['visitorId'])
 const emit = defineEmits(['close-detail'])
@@ -691,39 +734,29 @@ const updateObservacion = async () => {
   isUpdatingObservacion.value = false
 }
 
-// NUEVO: Función para actualizar el estado reactivamente
+// NUEVO: Función para actualizar el estado reactivamente con Modal Nativo
 const updateEstado = async (event) => {
   const newEstado = event.target.value
   const oldEstado = store.consolidaciones.find(c => c.id === props.visitorId)?.estado
   const isClosing = estadosCierre.includes(newEstado)
 
-  // 1. Si es un estado de cierre, mostrar modal de confirmación
+  // 1. Si es un estado de cierre, mostrar modal de confirmación nativo
   if (isClosing) {
-    const result = await Swal.fire({
+    const result = await showConfirm({
       title: '¿Cerrar consolidación?',
-      html: `Estás a punto de cambiar el estado a <b>"${newEstado}"</b>.<br><br>Una vez guardado, este registro se considerará finalizado y <b>desaparecerá de tu lista principal</b>.`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#004c97', // corporate
-      cancelButtonColor: '#ef4444',
-      confirmButtonText: 'Sí, cerrar registro',
-      cancelButtonText: 'Cancelar',
-      reverseButtons: true, // Mejor UX en móviles: Cancelar a la izquierda, Acción a la derecha
-      customClass: {
-        popup: 'rounded-2xl',
-        confirmButton: 'rounded-lg font-bold',
-        cancelButton: 'rounded-lg font-bold'
-      }
+      message: `Estás a punto de cambiar el estado a <b>"${newEstado}"</b>.<br><br>Una vez guardado, este registro se considerará finalizado y <b>desaparecerá de tu lista principal</b>.`,
+      confirmText: 'Sí, cerrar registro',
+      cancelText: 'Cancelar'
     })
 
-    // Si cancela, revertimos visualmente el select
-    if (!result.isConfirmed) {
+    // Si el usuario cancela (result === false), revertimos visualmente el select
+    if (!result) {
       visitor.value.estado = oldEstado
       return
     }
   }
 
-  // 2. Proceder a actualizar
+  // 2. Proceder a actualizar en la base de datos
   isUpdatingEstado.value = true
 
   const { error } = await supabase
@@ -1113,6 +1146,212 @@ const formatDate = (dateStr) => {
 </style>
 
 ==================================================
+--- ARCHIVO: ./src\components\RegistroComponent.vue ---
+==================================================
+
+<script setup>
+import { ref, computed } from 'vue'
+import { supabase } from '../supabase'
+import { useMainStore } from '../stores/mainStore'
+import { useToast } from '../composables/useToast'
+
+const emit = defineEmits(['close'])
+const store = useMainStore()
+const { showToast } = useToast()
+
+const isSaving = ref(false)
+
+const form = ref({
+  fecha_visita: new Date().toISOString().split('T')[0],
+  visitante: '',
+  telefono: '',
+  sexo: '',
+  edad: null,
+  estado_civil: '',
+  direccion: '',
+  barrio: '',
+  quien_invita: '',
+  lider_tribu: 'Sin asignar',
+  lider_manantial: 'Sin asignar'
+})
+
+// Filtra manantiales según la tribu seleccionada
+const availableWLeaders = computed(() => {
+  if (form.value.lider_tribu === 'Sin asignar') return []
+  return store.lideres.allLeadersData
+    .filter(r => (r[1] || 'Sin asignar') === form.value.lider_tribu)
+    .map(r => r[0])
+    .sort()
+})
+
+const validatePhone = (e) => {
+  let val = e.target.value.replace(/\D/g, '')
+  if (val.length > 10) val = val.slice(0, 10)
+  form.value.telefono = val
+}
+
+const submitForm = async () => {
+  if (form.value.telefono.length !== 10) {
+    return showToast('El teléfono debe tener 10 dígitos', 'error')
+  }
+
+  isSaving.value = true
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  const payload = {
+    ...form.value,
+    edad: form.value.edad || null,
+    lider_tribu: form.value.lider_tribu === 'Sin asignar' ? null : form.value.lider_tribu,
+    lider_manantial: form.value.lider_manantial === 'Sin asignar' ? null : form.value.lider_manantial,
+    estado: 'Sin reporte',
+    registrado_por: user?.user_metadata?.full_name || user?.email || 'Sistema'
+  }
+
+  const { error } = await supabase.from('consolidaciones').insert(payload)
+
+  if (!error) {
+    showToast('Consolidación registrada exitosamente', 'success')
+    await store.fetchData() // Recargar datos globales en la tabla de fondo
+    emit('close') // Cerrar el panel
+  } else {
+    showToast(`Error al guardar: ${error.message}`, 'error')
+  }
+  isSaving.value = false
+}
+</script>
+
+<template>
+  <div>
+    <!-- Fondo oscuro (backdrop) -->
+    <div @click="emit('close')" class="fixed inset-0 bg-black/20 z-40 transition-opacity backdrop-blur-sm"></div>
+    
+    <!-- Panel Lateral Deslizante -->
+    <div class="fixed top-0 right-0 h-full w-full md:w-[500px] bg-[#f8f9fa] shadow-2xl z-50 transform transition-transform duration-300 flex flex-col animate-[slideInRight_0.3s_ease-out]">
+      
+      <!-- Cabecera -->
+      <div class="flex justify-between items-center p-4 border-b bg-white shadow-sm">
+        <h5 class="font-bold text-corporate text-lg flex items-center gap-2 m-0">
+          Nuevo Registro
+        </h5>
+        <button @click="emit('close')" class="bg-gray-100 text-gray-500 w-8 h-8 rounded-full flex justify-center items-center hover:bg-red-500 hover:text-white transition-colors active:scale-95">
+          ✕
+        </button>
+      </div>
+
+      <!-- Cuerpo del Formulario con Scroll Independiente -->
+      <div class="p-4 overflow-y-auto flex-1 style-scrollbar">
+        <form @submit.prevent="submitForm" class="space-y-4">
+          
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
+            <div>
+              <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Fecha de Visita *</label>
+              <input type="date" v-model="form.fecha_visita" required class="w-full text-sm border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 bg-gray-50 transition-all font-medium text-gray-700">
+            </div>
+            
+            <div>
+              <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Nombre Completo *</label>
+              <input type="text" v-model="form.visitante" required class="w-full text-sm border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 transition-all">
+            </div>
+
+            <div>
+              <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Teléfono *</label>
+              <input type="text" v-model="form.telefono" @input="validatePhone" placeholder="Ej: 3001234567" required class="w-full text-sm border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 transition-all">
+              <span class="text-[9px] text-gray-400 mt-0.5 block">{{ form.telefono.length }}/10 dígitos</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Sexo *</label>
+                <select v-model="form.sexo" required class="w-full text-sm border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 bg-white transition-all">
+                  <option value="" disabled>Seleccione...</option>
+                  <option>Hombre</option>
+                  <option>Mujer</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Edad</label>
+                <input type="number" v-model="form.edad" min="1" max="120" class="w-full text-sm border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 transition-all">
+              </div>
+            </div>
+
+            <div>
+              <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Estado Civil</label>
+              <select v-model="form.estado_civil" class="w-full text-sm border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 bg-white transition-all">
+                <option value="" disabled>Seleccione...</option>
+                <option>Soltero</option>
+                <option>Casado</option>
+                <option>Divorciado</option>
+                <option>Viudo</option>
+                <option>Unión libre</option>
+              </select>
+            </div>
+            
+            <div>
+              <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Dirección *</label>
+              <input type="text" v-model="form.direccion" required class="w-full text-sm border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 transition-all">
+            </div>
+            
+            <div>
+              <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Barrio *</label>
+              <input type="text" v-model="form.barrio" required class="w-full text-sm border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 transition-all">
+            </div>
+
+            <div>
+              <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Quien Invita *</label>
+              <input type="text" v-model="form.quien_invita" required class="w-full text-sm border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 transition-all">
+            </div>
+          </div>
+
+          <!-- Liderazgo Opcional -->
+          <div class="bg-gray-50 rounded-xl border border-gray-100 p-5 space-y-4">
+            <h3 class="text-xs font-bold text-corporate flex items-center gap-2 m-0">
+              Asignación de Liderazgo (Opcional)
+            </h3>
+            
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Tribu</label>
+                <select v-model="form.lider_tribu" @change="form.lider_manantial = 'Sin asignar'" class="w-full text-sm border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 bg-white transition-all">
+                  <option value="Sin asignar">Sin asignar</option>
+                  <option v-for="l in store.lideres.tleaders" :key="l" :value="l">{{ l }}</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Manantial</label>
+                <select v-model="form.lider_manantial" :disabled="form.lider_tribu === 'Sin asignar'" class="w-full text-sm border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 bg-white transition-all disabled:opacity-50">
+                  <option value="Sin asignar">Sin asignar</option>
+                  <option v-for="l in availableWLeaders" :key="l" :value="l">{{ l }}</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Botón flotante estilo nativo -->
+          <div class="pt-4 pb-6">
+            <button type="submit" :disabled="isSaving" class="w-full bg-corporate text-white font-bold py-3.5 rounded-xl hover:bg-[#003366] transition-all shadow-[0_4px_12px_rgba(0,76,151,0.3)] hover:shadow-lg disabled:opacity-50 flex justify-center items-center gap-2 active:scale-95">
+              <div v-if="isSaving" class="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white"></div>
+              {{ isSaving ? 'Guardando...' : 'Crear Registro' }}
+            </button>
+          </div>
+        </form>
+      </div>
+
+    </div>
+  </div>
+</template>
+
+<style scoped>
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.style-scrollbar::-webkit-scrollbar { width: 6px; }
+.style-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.style-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.style-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--color-corporate); }
+</style>
+
+==================================================
 --- ARCHIVO: ./src\components\ToastNotification.vue ---
 ==================================================
 
@@ -1140,6 +1379,45 @@ const { toastState } = useToast()
 .toast-slide-enter-from { opacity: 0; transform: translateY(20px) scale(0.95); }
 .toast-slide-leave-to { opacity: 0; transform: translateY(20px) scale(0.95); }
 </style>
+
+==================================================
+--- ARCHIVO: ./src\composables\useConfirm.js ---
+==================================================
+
+import { ref } from 'vue'
+
+const confirmState = ref({
+  isOpen: false,
+  title: '',
+  message: '',
+  confirmText: 'Sí, confirmar',
+  cancelText: 'Cancelar',
+  resolvePromise: null
+})
+
+export function useConfirm() {
+  const showConfirm = (options) => {
+    return new Promise((resolve) => {
+      confirmState.value = {
+        isOpen: true,
+        title: options.title || '¿Confirmar acción?',
+        message: options.message || '',
+        confirmText: options.confirmText || 'Aceptar',
+        cancelText: options.cancelText || 'Cancelar',
+        resolvePromise: resolve
+      }
+    })
+  }
+
+  const resolve = (result) => {
+    if (confirmState.value.resolvePromise) {
+      confirmState.value.resolvePromise(result)
+    }
+    confirmState.value.isOpen = false
+  }
+
+  return { confirmState, showConfirm, resolve }
+}
 
 ==================================================
 --- ARCHIVO: ./src\composables\useToast.js ---
@@ -1205,13 +1483,12 @@ export const useMainStore = defineStore('main', () => {
   const lideres = ref({ tleaders: [], wleaders: [], allLeadersData: [] })
   const isLoading = ref(false)
   
-  // NUEVO: Estado para los permisos del usuario actual
-  const userPermissions = ref({ puede_cerrar: false, puede_asignar: false, rol: 'lider_basico' })
+  const userPermissions = ref({ puede_cerrar: false, puede_asignar: false, puede_crear: false, rol: 'lider_basico' })
 
   async function loadUserPermissions(email) {
     const { data } = await supabase
       .from('roles_usuarios')
-      .select('rol, puede_cerrar_consolidacion, puede_asignar')
+      .select('rol, puede_cerrar_consolidacion, puede_asignar, puede_crear')
       .eq('email', email)
       .single()
       
@@ -1219,6 +1496,7 @@ export const useMainStore = defineStore('main', () => {
       userPermissions.value = {
         puede_cerrar: data.puede_cerrar_consolidacion,
         puede_asignar: data.puede_asignar,
+        puede_crear: data.puede_crear,
         rol: data.rol
       }
     }
@@ -1227,8 +1505,12 @@ export const useMainStore = defineStore('main', () => {
   async function fetchData() {
     isLoading.value = true
     
-    // 1. Cargar Lideres
-    const { data: dataLideres } = await supabase.from('lideres').select('id, lider_tribu, lider_manantial')
+    // 1. Cargar Lideres (Filtrando inactivos)
+    const { data: dataLideres } = await supabase
+      .from('lideres')
+      .select('id, lider_tribu, lider_manantial')
+      .eq('estado', true) // <-- Este es el nuevo filtro
+
     if (dataLideres) {
       const tleaders = [...new Set(dataLideres.map(i => i.lider_tribu).filter(Boolean))].sort()
       const wleaders = [...new Set(dataLideres.map(i => i.lider_manantial).filter(Boolean))].sort()
@@ -1266,11 +1548,12 @@ export const useMainStore = defineStore('main', () => {
 import { ref, computed, onMounted } from 'vue'
 import { useMainStore } from '../stores/mainStore'
 import DetailComponent from '../components/DetailComponent.vue'
+import RegistroComponent from '../components/RegistroComponent.vue'
 
 const store = useMainStore()
-
 const filters = ref({ tleader: '', wleader: '' })
 const selectedVisitorId = ref(null)
+const isRegistroOpen = ref(false)
 
 onMounted(() => {
   store.fetchData()
@@ -1330,6 +1613,15 @@ const formatDate = (dateStr) => {
 
         <!-- Filtros Rápidos (Tribus y Manantiales) -->
         <div class="w-full xl:w-auto flex flex-col sm:flex-row gap-2.5">
+          <button 
+            v-if="store.userPermissions?.puede_crear" 
+            @click="isRegistroOpen = true"
+            class="w-full sm:w-auto bg-accent-gold text-accent-text font-extrabold px-5 py-2.5 rounded-xl shadow-md hover:scale-[1.02] active:scale-95 transition-transform flex items-center justify-center gap-2"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+            Nuevo Registro
+          </button>
+
           <select 
             v-model="filters.tleader" 
             @change="filters.wleader = ''" 
@@ -1421,6 +1713,8 @@ const formatDate = (dateStr) => {
 
     <!-- Componente Modal Deslizante -->
     <DetailComponent :visitor-id="selectedVisitorId" @close-detail="selectedVisitorId = null" />
+    <!-- NUEVO: Panel de Creación -->
+    <RegistroComponent v-if="isRegistroOpen" @close="isRegistroOpen = false" />
   </div>
 </template>
 
@@ -1839,7 +2133,6 @@ export default defineConfig({
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",
     "pinia": "^4.0.3",
-    "sweetalert2": "^11.26.25",
     "vue": "^3.5.41",
     "vue-router": "^5.3.0"
   },
