@@ -828,12 +828,27 @@ const saveManagement = async () => {
     usuario: user?.email || 'Usuario'
   }
 
+  // 1. Insertar la nueva gestión
   const { error } = await supabase.from('gestiones').insert(payload)
   
   if (!error) {
+    // 2. Generar fecha actual (Timestamp ISO)
+    const now = new Date().toISOString()
+    
+    // 3. Actualizar updated_at en Supabase para la consolidación
+    await supabase
+      .from('consolidaciones')
+      .update({ updated_at: now })
+      .eq('id', props.visitorId)
+      
+    // 4. Actualizar el estado reactivo localmente para reflejarlo en la tabla al instante
+    if (visitor.value) {
+      visitor.value.updated_at = now
+    }
+
     form.value.tipo_gestion = ''
     form.value.resultado = ''
-    isFormVisible.value = false // Oculta el form al guardar exitosamente
+    isFormVisible.value = false
     showToast('Gestión registrada correctamente', 'success')
     await loadHistory(props.visitorId)
   } else {

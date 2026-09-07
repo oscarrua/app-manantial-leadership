@@ -92,6 +92,8 @@ const submitForm = async () => {
         form.value.longitud = geoData.results[0].geometry.location.lng
       } else {
         console.warn('Detalle del rechazo de Google:', geoData)
+        // Notifica al usuario en pantalla para que sepa qué ocurrió:
+        showToast('Dirección no encontrada en el mapa. Intenta usar el botón "Usar mi GPS".', 'error')
       }
     } catch (error) {
       console.error('Fallo silencioso en geocodificación:', error)
