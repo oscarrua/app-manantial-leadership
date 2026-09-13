@@ -3,9 +3,11 @@ import { ref, computed, onMounted } from 'vue'
 import { useMainStore } from '../stores/mainStore'
 import { supabase } from '../supabase'
 import { useToast } from '../composables/useToast'
+import { useConfirm } from '../composables/useConfirm'
 
 const store = useMainStore()
 const { showToast } = useToast()
+const { showConfirm } = useConfirm()
 
 onMounted(() => {
   store.fetchData()
@@ -130,8 +132,27 @@ const validatePhone = (e, field) => {
 
 const submitForm = async () => {
   if (isSaving.value) return 
+
+  // 1. Validación de campos obligatorios
+  const f = form.value
+  if (!f.lider_id || !f.celular_lider || !f.direccion || !f.barrio) {
+    return showToast('Los campos: Líder, Celular, Dirección y Barrio son obligatorios', 'error')
+  }
+
+  // 2. Mensaje de confirmación ético/responsabilidad
+  const accionText = form.value.id ? 'actualizar' : 'registrar'
+  const isConfirmed = await showConfirm({
+    title: 'Responsabilidad de Liderazgo',
+    message: `Estás a punto de ${accionText} un manantial.<br><br><b>Recuerda:</b> Por respeto y responsabilidad con la información, asegúrate de registrar o modificar <b>únicamente los manantiales que pertenecen a tu tribu</b>.<br><br>¿Deseas continuar con este proceso?`,
+    confirmText: 'Sí, es de mi tribu',
+    cancelText: 'Cancelar'
+  })
+
+  if (!isConfirmed) return
+
   isSaving.value = true
 
+  // 3. Lógica de GPS (Fallback)
   if (!form.value.latitud || !form.value.longitud) {
     const query = `${form.value.direccion}, Barrio ${form.value.barrio}, Palmira, Valle del Cauca, Colombia`
     const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY 
@@ -151,6 +172,7 @@ const submitForm = async () => {
     }
   }
 
+  // 4. Preparar Payload y Guardar
   const payload = { ...form.value }
   delete payload.lider_manantial 
   
@@ -168,8 +190,8 @@ const submitForm = async () => {
   if (!error) {
     await store.fetchData(true)
     isFormOpen.value = false
-    const accion = form.value.id ? 'actualizado' : 'registrado'
-    showToast(`Manantial ${accion} con éxito`, 'success')
+    const accionToast = form.value.id ? 'actualizado' : 'registrado'
+    showToast(`Manantial ${accionToast} con éxito`, 'success')
   } else {
     showToast(`Error al guardar: ${error.message}`, 'error')
   }
@@ -293,14 +315,14 @@ const submitForm = async () => {
           
           <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
             <div>
-              <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Líder Asignado</label>
+              <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Líder Asignado *</label>
               <select v-model="form.lider_id" @change="updateLiderName" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 bg-white transition-all">
                 <option v-for="l in tribeWLeaders" :key="l.id" :value="l.id">{{ l.name }}</option>
               </select>
             </div>
             
             <div>
-              <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Celular Líder</label>
+              <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Celular Líder *</label>
               <input 
                 type="tel" 
                 inputmode="numeric" 
@@ -313,11 +335,11 @@ const submitForm = async () => {
               >
             </div>
             <div>
-              <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Dirección Exacta</label>
+              <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Dirección Exacta *</label>
               <input type="text" v-model="form.direccion" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 transition-all">
             </div>
             <div>
-              <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Barrio</label>
+              <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Barrio *</label>
               <input type="text" v-model="form.barrio" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 transition-all">
             </div>
             

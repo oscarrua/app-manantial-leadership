@@ -30,7 +30,6 @@ export type Database = {
           observacion: string | null
           peticion: string | null
           quien_invita: string | null
-          red: string | null
           registrado_por: string | null
           sexo: string | null
           telefono: string | null
@@ -52,7 +51,6 @@ export type Database = {
           observacion?: string | null
           peticion?: string | null
           quien_invita?: string | null
-          red?: string | null
           registrado_por?: string | null
           sexo?: string | null
           telefono?: string | null
@@ -74,7 +72,6 @@ export type Database = {
           observacion?: string | null
           peticion?: string | null
           quien_invita?: string | null
-          red?: string | null
           registrado_por?: string | null
           sexo?: string | null
           telefono?: string | null
@@ -161,15 +158,15 @@ export type Database = {
           activo: boolean
           actualizado_por: string | null
           anfitrion: string | null
-          barrio: string | null
+          barrio: string
           celular_anfitrion: string | null
-          celular_lider: string | null
+          celular_lider: string
           dia_reunion: string | null
-          direccion: string | null
+          direccion: string
           hora_reunion: string | null
           id: number
           latitud: number | null
-          lider_id: number | null
+          lider_id: number
           longitud: number | null
           updated_at: string | null
         }
@@ -177,15 +174,15 @@ export type Database = {
           activo?: boolean
           actualizado_por?: string | null
           anfitrion?: string | null
-          barrio?: string | null
+          barrio: string
           celular_anfitrion?: string | null
-          celular_lider?: string | null
+          celular_lider: string
           dia_reunion?: string | null
-          direccion?: string | null
+          direccion: string
           hora_reunion?: string | null
           id?: number
           latitud?: number | null
-          lider_id?: number | null
+          lider_id: number
           longitud?: number | null
           updated_at?: string | null
         }
@@ -193,15 +190,15 @@ export type Database = {
           activo?: boolean
           actualizado_por?: string | null
           anfitrion?: string | null
-          barrio?: string | null
+          barrio?: string
           celular_anfitrion?: string | null
-          celular_lider?: string | null
+          celular_lider?: string
           dia_reunion?: string | null
-          direccion?: string | null
+          direccion?: string
           hora_reunion?: string | null
           id?: number
           latitud?: number | null
-          lider_id?: number | null
+          lider_id?: number
           longitud?: number | null
           updated_at?: string | null
         }

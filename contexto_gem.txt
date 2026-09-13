@@ -284,7 +284,6 @@ export type Database = {
           observacion: string | null
           peticion: string | null
           quien_invita: string | null
-          red: string | null
           registrado_por: string | null
           sexo: string | null
           telefono: string | null
@@ -306,7 +305,6 @@ export type Database = {
           observacion?: string | null
           peticion?: string | null
           quien_invita?: string | null
-          red?: string | null
           registrado_por?: string | null
           sexo?: string | null
           telefono?: string | null
@@ -328,7 +326,6 @@ export type Database = {
           observacion?: string | null
           peticion?: string | null
           quien_invita?: string | null
-          red?: string | null
           registrado_por?: string | null
           sexo?: string | null
           telefono?: string | null
@@ -1428,23 +1425,36 @@ const { toastState } = useToast()
 </script>
 
 <template>
-  <transition name="toast-slide">
-    <div v-if="toastState.show" 
-         class="fixed bottom-5 right-5 z-[9999] px-6 py-3 rounded-xl shadow-2xl font-bold text-sm flex items-center gap-3 border"
-         :class="toastState.type === 'success' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'">
-      
-      <span v-if="toastState.type === 'success'" class="text-lg">✓</span>
-      <span v-else class="text-lg">⚠</span>
-      
-      {{ toastState.message }}
-    </div>
-  </transition>
+  <!-- Contenedor posicionado en la parte superior central. 
+       El pointer-events-none permite hacer clic a través del contenedor invisible -->
+  <div class="fixed top-6 left-0 right-0 z-[9999] flex justify-center pointer-events-none px-4">
+    <transition name="toast-slide">
+      <div v-if="toastState.show" 
+           class="pointer-events-auto px-6 py-3.5 rounded-full shadow-[0_10px_40px_rgba(0,0,0,0.1)] font-bold text-sm flex items-center gap-3 border w-full sm:w-auto sm:min-w-[300px] justify-center"
+           :class="toastState.type === 'success' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'">
+        
+        <span v-if="toastState.type === 'success'" class="text-lg leading-none">✓</span>
+        <span v-else class="text-lg leading-none">⚠</span>
+        
+        <span class="text-center">{{ toastState.message }}</span>
+      </div>
+    </transition>
+  </div>
 </template>
 
 <style scoped>
-.toast-slide-enter-active, .toast-slide-leave-active { transition: all 0.3s ease; }
-.toast-slide-enter-from { opacity: 0; transform: translateY(20px) scale(0.95); }
-.toast-slide-leave-to { opacity: 0; transform: translateY(20px) scale(0.95); }
+/* Transición mejorada para que caiga desde arriba con un rebote suave (UX) */
+.toast-slide-enter-active, .toast-slide-leave-active { 
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+}
+.toast-slide-enter-from { 
+  opacity: 0; 
+  transform: translateY(-40px) scale(0.9); 
+}
+.toast-slide-leave-to { 
+  opacity: 0; 
+  transform: translateY(-20px) scale(0.9); 
+}
 </style>
 
 ==================================================
@@ -1572,27 +1582,27 @@ export const useMainStore = defineStore('main', () => {
   async function fetchData() {
     isLoading.value = true
     
-    // 1. Cargar Lideres (Filtrando inactivos)
+    // 1. Cargar Lideres (Filtrando inactivos e incluyendo "red")
     const { data: dataLideres } = await supabase
       .from('lideres')
-      .select('id, lider_tribu, lider_manantial')
-      .eq('estado', true) // <-- Este es el nuevo filtro
+      .select('id, lider_tribu, lider_manantial, red') // <-- MODIFICADO: Agregado campo 'red'
+      .eq('estado', true)
 
     if (dataLideres) {
       const tleaders = [...new Set(dataLideres.map(i => i.lider_tribu).filter(Boolean))].sort()
       const wleaders = [...new Set(dataLideres.map(i => i.lider_manantial).filter(Boolean))].sort()
+      
       const allLeadersData = dataLideres
         .filter(i => i.lider_manantial && i.lider_tribu)
-        .map(i => [i.lider_manantial, i.lider_tribu, i.id])
+        .map(i => [i.lider_manantial, i.lider_tribu, i.id, i.red]) // <-- MODIFICADO: Agregado i.red
       
       lideres.value = { tleaders, wleaders, allLeadersData }
     }
 
-    // 2. Cargar Consolidaciones Abiertas (EXCLUYENDO LOS CERRADOS)
+    // 2. Cargar Consolidaciones Abiertas
     const { data: dataConsol } = await supabase
       .from('consolidaciones')
       .select('*')
-      // Mantenemos solo los abiertos
       .in('estado', ['En proceso', 'Sin reporte'])
       .order('id', { ascending: true })
     if (dataConsol) consolidaciones.value = dataConsol
@@ -1841,13 +1851,17 @@ const loginWithGoogle = async () => {
 ==================================================
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useMainStore } from '../stores/mainStore'
 import { supabase } from '../supabase'
 import { useToast } from '../composables/useToast'
 
 const store = useMainStore()
 const { showToast } = useToast()
+
+onMounted(() => {
+  store.fetchData()
+})
 
 const selectedTLeader = ref('')
 const isFormOpen = ref(false)
@@ -1861,13 +1875,65 @@ const form = ref({
 
 const tribeWLeaders = computed(() => {
   if (!selectedTLeader.value) return []
-  return store.lideres.allLeadersData
-    .filter(r => r[1] === selectedTLeader.value)
-    .map(r => ({ name: r[0], id: r[2] }))
+  
+  let filteredData = store.lideres.allLeadersData
+  if (selectedTLeader.value !== 'Todas') {
+    filteredData = filteredData.filter(r => r[1] === selectedTLeader.value)
+  }
+  
+  return filteredData
+    // Se mapea la "red" desde el índice 3 del arreglo de datos de líderes
+    .map(r => ({ name: r[0], tribu: r[1], id: r[2], red: r[3] }))
     .sort((a, b) => a.name.localeCompare(b.name))
 })
 
 const getManantiales = (leaderId) => store.manantiales.filter(m => m.lider_id === leaderId)
+
+const exportToExcel = () => {
+  if (!selectedTLeader.value || tribeWLeaders.value.length === 0) {
+    return showToast('No hay datos para exportar', 'error')
+  }
+
+  // MODIFICADO: Añadida la columna "Red" al inicio de las cabeceras
+  let csv = 'Red,Tribu,Líder Asignado,Celular del Líder,Dirección,Barrio,Día\n'
+  let hasData = false
+
+  tribeWLeaders.value.forEach(wleader => {
+    const manantiales = getManantiales(wleader.id)
+    manantiales.forEach(m => {
+      hasData = true
+      const red = wleader.red || 'Sin asignar' // Nuevo campo
+      const tribu = wleader.tribu || 'Sin asignar'
+      const lider = wleader.name || 'Sin asignar'
+      const celular = m.celular_lider || 'N/A'
+      
+      const dir = m.direccion ? `"${m.direccion.replace(/"/g, '""').replace(/\n/g, ' ')}"` : 'N/A'
+      const barrio = m.barrio ? `"${m.barrio.replace(/"/g, '""').replace(/\n/g, ' ')}"` : 'N/A'
+      const dia = m.dia_reunion || 'N/A'
+      
+      // MODIFICADO: Inyectando el campo Red en la fila del Excel
+      csv += `"${red}","${tribu}","${lider}","${celular}",${dir},${barrio},"${dia}"\n`
+    })
+  })
+
+  if (!hasData) {
+    return showToast('No hay manantiales registrados para esta selección', 'error')
+  }
+
+  const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement("a")
+  link.setAttribute("href", url)
+  
+  const fileName = selectedTLeader.value === 'Todas' ? 'Todas_Las_Tribus' : selectedTLeader.value
+  link.setAttribute("download", `Manantiales_${fileName}.csv`)
+  
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  
+  showToast('Exportación completada exitosamente', 'success')
+}
 
 const openForm = (wleader, manantial = null) => {
   if (manantial) {
@@ -1888,7 +1954,6 @@ const updateLiderName = () => {
   if (leader) form.value.lider_manantial = leader.name
 }
 
-// Nueva Función: Captura de GPS Nativo
 const capturarGPS = () => {
   if (!navigator.geolocation) {
     return showToast('GPS no soportado en este dispositivo', 'error')
@@ -1916,11 +1981,9 @@ const validatePhone = (e, field) => {
 }
 
 const submitForm = async () => {
-  // Barrera Anti-Spam (Protege la base de datos y la API de Maps)
   if (isSaving.value) return 
   isSaving.value = true
 
-  // Geocodificación Automática Cliente
   if (!form.value.latitud || !form.value.longitud) {
     const query = `${form.value.direccion}, Barrio ${form.value.barrio}, Palmira, Valle del Cauca, Colombia`
     const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY 
@@ -1933,8 +1996,6 @@ const submitForm = async () => {
         form.value.latitud = geoData.results[0].geometry.location.lat
         form.value.longitud = geoData.results[0].geometry.location.lng
       } else {
-        console.warn('Detalle del rechazo de Google:', geoData)
-        // Notifica al usuario en pantalla para que sepa qué ocurrió:
         showToast('Dirección no encontrada en el mapa. Intenta usar el botón "Usar mi GPS".', 'error')
       }
     } catch (error) {
@@ -1942,7 +2003,6 @@ const submitForm = async () => {
     }
   }
 
-  // Preparación limpia del Payload
   const payload = { ...form.value }
   delete payload.lider_manantial 
   
@@ -1953,7 +2013,6 @@ const submitForm = async () => {
   const { data: { user } } = await supabase.auth.getUser()
   payload.actualizado_por = user?.user_metadata?.full_name || user?.email || 'Sistema'
 
-  // Transacción en Supabase
   const { error } = form.value.id 
     ? await supabase.from('manantiales').update(payload).eq('id', form.value.id)
     : await supabase.from('manantiales').insert(payload)
@@ -1973,19 +2032,31 @@ const submitForm = async () => {
 <template>
   <div class="animate-[fadeInUp_0.4s_ease-out]">
     
-    <!-- Hero Buscador -->
+    <!-- Hero Buscador y Botón de Excel -->
     <div class="bg-gradient-to-r from-corporate to-[#002244] p-6 rounded-2xl shadow-lg mb-8 text-white relative overflow-hidden">
       <div class="absolute -top-10 -right-10 w-64 h-64 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
-      <div class="md:flex justify-between items-center gap-6 relative z-10">
-        <div class="mb-4 md:mb-0">
-          <h2 class="text-2xl font-extrabold mb-1">Directorio de Tribus</h2>
+      
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
+        <div class="mb-2 md:mb-0">
+          <h2 class="text-xl md:text-2xl font-extrabold mb-1">Directorio de Tribus</h2>
           <p class="text-white/80 text-sm">Selecciona una Tribu para gestionar sus líderes y locaciones.</p>
         </div>
-        <div class="w-full md:w-1/3">
-          <select v-model="selectedTLeader" class="w-full bg-white/10 text-white font-bold rounded-xl p-3 outline-none focus:ring-2 focus:ring-nav-accent-gold border border-white/20 backdrop-blur-sm transition-all appearance-none cursor-pointer">
+        
+        <div class="w-full md:w-auto flex flex-col sm:flex-row gap-3">
+          <select v-model="selectedTLeader" class="w-full sm:w-[250px] bg-white/10 text-white font-bold rounded-xl p-3 outline-none focus:ring-2 focus:ring-nav-accent-gold border border-white/20 backdrop-blur-sm transition-all appearance-none cursor-pointer">
             <option value="" class="text-gray-800">Seleccione una tribu...</option>
+            <option value="Todas" class="text-gray-800">Todas las tribus</option>
             <option v-for="l in store.lideres.tleaders" :key="l" :value="l" class="text-gray-800">{{ l }}</option>
           </select>
+
+          <button 
+            v-if="selectedTLeader"
+            @click="exportToExcel"
+            class="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white font-bold px-5 py-3 rounded-xl shadow-md transition-transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            Exportar Excel
+          </button>
         </div>
       </div>
     </div>
@@ -1993,37 +2064,39 @@ const submitForm = async () => {
     <!-- Directorio de Tarjetas -->
     <div v-if="selectedTLeader" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <div v-if="tribeWLeaders.length === 0" class="col-span-full text-center p-12 bg-white rounded-2xl border border-dashed border-gray-300 text-gray-500 font-medium">
-        No hay líderes asignados a esta tribu.
+        No hay líderes asignados a esta búsqueda.
       </div>
       
       <div v-for="wleader in tribeWLeaders" :key="wleader.id" class="group bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
         
-        <!-- Cabecera de Tarjeta Minimalista con botón (+) -->
-        <div class="p-4 border-b border-gray-50 flex justify-between items-center bg-gradient-to-b from-gray-50/50 to-white">
+        <div class="p-4 border-b border-gray-50 flex justify-between items-center bg-gradient-to-b from-gray-50/50 to-white relative">
+          
+          <!-- MODIFICADO: Distintivo con Red y Tribu -->
+          <div v-if="selectedTLeader === 'Todas'" class="absolute -top-0 -right-0 bg-corporate text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg opacity-80">
+            {{ wleader.red || 'Sin Red' }} • {{ wleader.tribu }}
+          </div>
+
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-full bg-corporate/10 text-corporate font-bold flex items-center justify-center shrink-0">
               {{ wleader.name.charAt(0) }}
             </div>
             <h4 class="font-bold text-gray-800 leading-tight pr-2 m-0">{{ wleader.name }}</h4>
           </div>
-          <button @click="openForm(wleader)" class="w-8 h-8 rounded-full bg-corporate text-white hover:bg-[#003366] flex items-center justify-center transition-colors shadow-sm shrink-0" title="Nuevo Manantial">
+          <button @click="openForm(wleader)" class="w-8 h-8 rounded-full bg-corporate text-white hover:bg-[#003366] flex items-center justify-center transition-colors shadow-sm shrink-0 mt-2" title="Nuevo Manantial">
             <span class="text-xl font-bold leading-none mb-0.5">+</span>
           </button>
         </div>
 
-        <!-- Lista de Manantiales -->
         <div class="p-3 flex-1 bg-white">
           <div v-if="getManantiales(wleader.id).length > 0" class="space-y-2.5">
             <div v-for="m in getManantiales(wleader.id)" :key="m.id" class="p-3 rounded-xl border border-gray-100 bg-gray-50/50 relative overflow-hidden transition-colors flex flex-col justify-between" :class="m.activo ? 'hover:border-green-200' : 'opacity-75 grayscale'">
-              <!-- Indicador de color lateral reforzado -->
+              
               <div class="absolute left-0 top-0 bottom-0 w-1.5" :class="m.activo ? 'bg-green-500' : 'bg-red-400'"></div>
               
               <div class="pl-2 flex justify-between items-start gap-3">
                 <div class="overflow-hidden w-full">
-                  
                   <div class="flex items-center gap-2">
                     <div class="font-bold text-sm text-gray-800 leading-tight truncate">{{ m.direccion }}</div>
-                    <!-- Mini enlace a mapa si hay coordenadas -->
                     <a v-if="m.latitud && m.longitud" 
                        :href="`https://maps.google.com/?q=${m.latitud},${m.longitud}`" 
                        target="_blank" rel="noopener noreferrer"
@@ -2032,18 +2105,11 @@ const submitForm = async () => {
                       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.242-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                     </a>
                   </div>
-                  
                   <div class="text-[11px] text-gray-500 mt-0.5 font-medium truncate">B. {{ m.barrio }} • {{ m.dia_reunion }} {{ m.hora_reunion }}</div>
                   
-                  <!-- Indicador de Coordenadas (NUEVO) -->
-                  <div class="mt-1 flex items-center gap-1 text-[9px] font-mono" :class="m.latitud ? 'text-gray-400' : 'text-red-400/80'">
-                    <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-                    {{ m.latitud && m.longitud ? `${m.latitud.toFixed(4)}, ${m.longitud.toFixed(4)}` : 'Sin GPS' }}
-                  </div>
-
+                  <!-- SE ELIMINÓ: el indicador visual numérico de las coordenadas por requerimiento de la UX -->
                 </div>
                 
-                <!-- Botón Editar Compacto (Icono) -->
                 <button @click="openForm(wleader, m)" class="text-corporate bg-corporate/10 hover:bg-corporate hover:text-white p-1.5 rounded-md transition-colors shrink-0 active:scale-95 shadow-sm" title="Editar Manantial">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                 </button>
@@ -2058,108 +2124,113 @@ const submitForm = async () => {
       </div>
     </div>
 
-    <!-- Panel Lateral Deslizante (Formulario de Edición/Creación) -->
+    <!-- Panel Lateral Deslizante (Formulario) -->
     <div v-if="isFormOpen" class="fixed inset-0 z-[60] flex justify-end">
       <div @click="isFormOpen = false" class="absolute inset-0 bg-black/20 backdrop-blur-sm transition-opacity"></div>
       
-      <div class="w-full md:w-[450px] bg-white h-full shadow-2xl relative z-10 flex flex-col animate-[slideInRight_0.3s_ease-out]">
-        <div class="p-5 border-b bg-gray-50 flex justify-between items-center">
-          <h3 class="font-bold text-lg text-corporate m-0">{{ form.id ? 'Editar' : 'Nuevo' }} Manantial</h3>
-          <button @click="isFormOpen = false" class="bg-gray-200 text-gray-600 hover:bg-red-500 hover:text-white w-8 h-8 rounded-full font-bold transition-colors flex items-center justify-center">✕</button>
+      <div class="w-full md:w-[500px] bg-[#f8f9fa] h-full shadow-2xl relative z-10 flex flex-col animate-[slideInRight_0.3s_ease-out]">
+        
+        <!-- MODIFICADO: Cabecera Hero estandarizada (Idéntica al de Registro de Consolidación) -->
+        <div class="flex justify-between items-center p-5 bg-gradient-to-r from-corporate to-[#002244] shadow-md text-white relative overflow-hidden">
+          <div class="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+          <h5 class="font-bold text-lg flex items-center gap-2 m-0 relative z-10">
+            {{ form.id ? 'Editar' : 'Nuevo' }} Manantial
+          </h5>
+          <button @click="isFormOpen = false" class="bg-white/10 text-white hover:bg-red-500 w-8 h-8 rounded-full flex justify-center items-center transition-colors shadow-sm relative z-10 backdrop-blur-sm active:scale-95">
+            ✕
+          </button>
         </div>
         
         <div class="p-6 overflow-y-auto flex-1 space-y-4 style-scrollbar">
           
-          <!-- Reasignación de Líder -->
-          <div>
-            <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Líder Asignado</label>
-            <select v-model="form.lider_id" @change="updateLiderName" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 bg-white transition-all">
-              <option v-for="l in tribeWLeaders" :key="l.id" :value="l.id">{{ l.name }}</option>
-            </select>
-          </div>
-          
-          <div>
-            <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Celular Líder</label>
-            <input 
-              type="tel" 
-              inputmode="numeric" 
-              pattern="[0-9]*"
-              v-model="form.celular_lider" 
-              @input="validatePhone($event, 'celular_lider')"
-              maxlength="10" 
-              class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 transition-all"
-              placeholder="Ej: 3001234567"
-            >
-          </div>
-          <div>
-            <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Dirección Exacta</label>
-            <input type="text" v-model="form.direccion" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 transition-all">
-          </div>
-          <div>
-            <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Barrio</label>
-            <input type="text" v-model="form.barrio" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 transition-all">
-          </div>
-          
-          <div class="grid grid-cols-2 gap-4">
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
             <div>
-              <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Día</label>
-              <select v-model="form.dia_reunion" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 bg-white transition-all">
-                <option>Lunes</option><option>Martes</option><option>Miércoles</option><option>Jueves</option><option>Viernes</option><option>Sábado</option><option>Domingo</option>
+              <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Líder Asignado</label>
+              <select v-model="form.lider_id" @change="updateLiderName" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 bg-white transition-all">
+                <option v-for="l in tribeWLeaders" :key="l.id" :value="l.id">{{ l.name }}</option>
               </select>
             </div>
+            
             <div>
-              <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Hora</label>
-              <input type="time" v-model="form.hora_reunion" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 transition-all">
+              <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Celular Líder</label>
+              <input 
+                type="tel" 
+                inputmode="numeric" 
+                pattern="[0-9]*"
+                v-model="form.celular_lider" 
+                @input="validatePhone($event, 'celular_lider')"
+                maxlength="10" 
+                class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 transition-all"
+                placeholder="Ej: 3001234567"
+              >
             </div>
-          </div>
-          
-          <div class="pt-2 border-t border-gray-100">
-            <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Nombre Anfitrión</label>
-            <input type="text" v-model="form.anfitrion" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 transition-all">
-          </div>
-          <div>
-            <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Celular Anfitrión</label>
-            <input 
-              type="tel" 
-              inputmode="numeric" 
-              pattern="[0-9]*"
-              v-model="form.celular_anfitrion" 
-              @input="validatePhone($event, 'celular_anfitrion')"
-              maxlength="10" 
-              class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 transition-all"
-              placeholder="Ej: 3001234567"
-            >
-          </div>
-
-          <!-- Nueva Sección de Coordenadas con Captura GPS -->
-          <div class="pt-2 border-t border-gray-100">
-            <div class="flex justify-between items-center mb-2">
-              <span class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Coordenadas</span>
-              <button type="button" @click="capturarGPS" class="flex items-center gap-1 text-[10px] bg-blue-50 text-corporate px-2 py-1 rounded font-bold border border-blue-100 hover:bg-corporate hover:text-white transition-colors active:scale-95 shadow-sm">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.242-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                Usar mi GPS
-              </button>
+            <div>
+              <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Dirección Exacta</label>
+              <input type="text" v-model="form.direccion" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 transition-all">
             </div>
+            <div>
+              <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Barrio</label>
+              <input type="text" v-model="form.barrio" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 transition-all">
+            </div>
+            
             <div class="grid grid-cols-2 gap-4">
-              <input type="number" step="any" v-model="form.latitud" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 transition-all text-sm" placeholder="Latitud">
-              <input type="number" step="any" v-model="form.longitud" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 transition-all text-sm" placeholder="Longitud">
+              <div>
+                <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Día</label>
+                <select v-model="form.dia_reunion" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 bg-white transition-all">
+                  <option>Lunes</option><option>Martes</option><option>Miércoles</option><option>Jueves</option><option>Viernes</option><option>Sábado</option><option>Domingo</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Hora</label>
+                <input type="time" v-model="form.hora_reunion" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 transition-all">
+              </div>
+            </div>
+            
+            <div class="pt-4 border-t border-gray-100">
+              <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Nombre Anfitrión</label>
+              <input type="text" v-model="form.anfitrion" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 transition-all">
+            </div>
+            <div>
+              <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Celular Anfitrión</label>
+              <input 
+                type="tel" 
+                inputmode="numeric" 
+                pattern="[0-9]*"
+                v-model="form.celular_anfitrion" 
+                @input="validatePhone($event, 'celular_anfitrion')"
+                maxlength="10" 
+                class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 mt-1 transition-all"
+                placeholder="Ej: 3001234567"
+              >
+            </div>
+
+            <div class="pt-4 border-t border-gray-100">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Coordenadas Mapas</span>
+                <button type="button" @click="capturarGPS" class="flex items-center gap-1 text-[10px] bg-blue-50 text-corporate px-2 py-1 rounded font-bold border border-blue-100 hover:bg-corporate hover:text-white transition-colors active:scale-95 shadow-sm">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.242-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                  Usar mi GPS
+                </button>
+              </div>
+              <div class="grid grid-cols-2 gap-4">
+                <input type="number" step="any" v-model="form.latitud" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 transition-all text-sm" placeholder="Latitud">
+                <input type="number" step="any" v-model="form.longitud" class="w-full border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 transition-all text-sm" placeholder="Longitud">
+              </div>
+            </div>
+
+            <div v-if="form.id" class="pt-4 border-t border-gray-100 flex justify-between items-center">
+              <span class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Estado del Manantial</span>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" v-model="form.activo" class="sr-only peer">
+                <div class="w-11 h-6 bg-red-400 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                <span class="ml-3 text-xs font-bold" :class="form.activo ? 'text-green-600' : 'text-red-500'">{{ form.activo ? 'Activo' : 'Inactivo' }}</span>
+              </label>
             </div>
           </div>
-
-          <!-- Switch Activo/Inactivo dentro de Editar -->
-          <div v-if="form.id" class="pt-4 mt-2 border-t border-gray-100 flex justify-between items-center">
-            <span class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Estado del Manantial</span>
-            <label class="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" v-model="form.activo" class="sr-only peer">
-              <div class="w-11 h-6 bg-red-400 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
-              <span class="ml-3 text-xs font-bold" :class="form.activo ? 'text-green-600' : 'text-red-500'">{{ form.activo ? 'Activo' : 'Inactivo' }}</span>
-            </label>
-          </div>
-
         </div>
         
         <div class="p-5 border-t bg-white">
-          <button @click="submitForm" :disabled="isSaving" class="w-full bg-corporate text-white font-bold py-3 rounded-xl hover:bg-[#003366] transition-all shadow-md hover:shadow-lg disabled:opacity-50 flex justify-center items-center gap-2">
+          <button @click="submitForm" :disabled="isSaving" class="w-full bg-corporate text-white font-bold py-3.5 rounded-xl hover:bg-[#003366] transition-all shadow-[0_4px_12px_rgba(0,76,151,0.3)] hover:shadow-lg disabled:opacity-50 flex justify-center items-center gap-2 active:scale-95">
             <div v-if="isSaving" class="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white"></div>
             {{ isSaving ? 'Guardando...' : 'Guardar Manantial' }}
           </button>
