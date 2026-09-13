@@ -166,7 +166,14 @@ watch(() => props.visitorId, async (newId) => {
   isFormVisible.value = false
   
   // Autodetectar la "Red" al abrir el registro
-  if (visitor.value.lider_tribu && visitor.value.lider_tribu !== 'Sin asignar') {
+  if (visitor.value.lider_manantial && visitor.value.lider_manantial !== 'Sin asignar') {
+    // Buscar primero por el líder de manantial específico para mayor precisión
+    const liderInfo = store.lideres.allLeadersData.find(l => 
+      l[0] === visitor.value.lider_manantial && l[1] === visitor.value.lider_tribu
+    )
+    selectedRed.value = liderInfo ? liderInfo[3] : ''
+  } else if (visitor.value.lider_tribu && visitor.value.lider_tribu !== 'Sin asignar') {
+    // Fallback: Buscar solo por tribu si el visitante aún no tiene manantial
     const liderInfo = store.lideres.allLeadersData.find(l => l[1] === visitor.value.lider_tribu)
     selectedRed.value = liderInfo ? liderInfo[3] : ''
   } else {
