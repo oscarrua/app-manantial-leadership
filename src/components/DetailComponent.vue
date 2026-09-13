@@ -66,12 +66,25 @@ const onTribuChange = () => {
 
 const onManantialChange = () => {
   if (visitor.value) {
-    visitor.value.manantial_asignado_id = null
+    if (visitor.value.lider_manantial === 'Sin asignar' || !visitor.value.lider_manantial) {
+      visitor.value.manantial_asignado_id = null
+    } else {
+      // Auto-asigna el primer manantial de la lista (el más cercano según la lógica actual)
+      if (availableManantialesList.value.length > 0) {
+        visitor.value.manantial_asignado_id = availableManantialesList.value[0].id
+      } else {
+        visitor.value.manantial_asignado_id = null
+      }
+    }
   }
 }
 
-// === GUARDADO FINAL (Una sola confirmación) ===
 const saveLiderazgo = async () => {
+  // Validación: Solo exige manantial si se seleccionó explícitamente un líder de manantial
+  if (visitor.value.lider_manantial && visitor.value.lider_manantial !== 'Sin asignar' && !visitor.value.manantial_asignado_id) {
+    return showToast('El líder seleccionado debe tener un manantial asignado', 'error')
+  }
+
   const isConfirmed = await showConfirm({
     title: '¿Guardar Asignación?',
     message: `¿Estás seguro de guardar la configuración de liderazgo seleccionada?`,

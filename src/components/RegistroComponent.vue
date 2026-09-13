@@ -11,6 +11,7 @@ const { showToast } = useToast()
 const { showConfirm } = useConfirm() // Inicializamos el confirmador
 
 const isSaving = ref(false)
+const selectedRed = ref('')
 
 // Corrección de la fecha: Ajustamos la fecha actual con el Offset de la zona horaria local
 const today = new Date()
@@ -26,20 +27,57 @@ const form = ref({
   direccion: '',
   barrio: '',
   quien_invita: '',
-  peticion: '',     // Nuevo campo
-  observacion: '',  // Nuevo campo
+  peticion: '',
+  observacion: '',
   lider_tribu: 'Sin asignar',
-  lider_manantial: 'Sin asignar'
+  lider_manantial: 'Sin asignar',
+  manantial_asignado_id: null
 })
 
-// Filtra manantiales según la tribu seleccionada
+// Cascadas reactivas
+const availableTribes = computed(() => {
+  if (!selectedRed.value) return []
+  return [...new Set(store.lideres.allLeadersData
+    .filter(r => r[3] === selectedRed.value)
+    .map(r => r[1]))].sort()
+})
+
 const availableWLeaders = computed(() => {
   if (form.value.lider_tribu === 'Sin asignar') return []
   return store.lideres.allLeadersData
-    .filter(r => (r[1] || 'Sin asignar') === form.value.lider_tribu)
+    .filter(r => (r[1] || 'Sin asignar') === form.value.lider_tribu && r[3] === selectedRed.value)
     .map(r => r[0])
     .sort()
 })
+
+const availableManantialesList = computed(() => {
+  if (form.value.lider_manantial === 'Sin asignar') return []
+  const currentLeader = store.lideres.allLeadersData.find(r => r[0] === form.value.lider_manantial)
+  if (!currentLeader) return []
+  return store.manantiales.filter(m => m.lider_id === currentLeader[2])
+})
+
+// Eventos de limpieza y auto-asignación
+const onRedChange = () => {
+  form.value.lider_tribu = 'Sin asignar'
+  form.value.lider_manantial = 'Sin asignar'
+  form.value.manantial_asignado_id = null
+}
+
+const onTribuChange = () => {
+  form.value.lider_manantial = 'Sin asignar'
+  form.value.manantial_asignado_id = null
+}
+
+const onManantialChange = () => {
+  if (form.value.lider_manantial === 'Sin asignar') {
+    form.value.manantial_asignado_id = null
+  } else if (availableManantialesList.value.length > 0) {
+    form.value.manantial_asignado_id = availableManantialesList.value[0].id // Auto-selección
+  } else {
+    form.value.manantial_asignado_id = null
+  }
+}
 
 const validatePhone = (e) => {
   let val = e.target.value.replace(/\D/g, '')
@@ -50,6 +88,11 @@ const validatePhone = (e) => {
 const submitForm = async () => {
   if (form.value.telefono.length !== 10) {
     return showToast('El teléfono debe tener 10 dígitos', 'error')
+  }
+
+  // Validación: Exige el manantial solo si se seleccionó líder de manantial
+  if (form.value.lider_manantial !== 'Sin asignar' && !form.value.manantial_asignado_id) {
+    return showToast('El líder seleccionado no tiene manantiales o falta asignar uno', 'error')
   }
 
   // Cuadro de confirmación antes de guardar
@@ -70,6 +113,7 @@ const submitForm = async () => {
     edad: form.value.edad || null,
     lider_tribu: form.value.lider_tribu === 'Sin asignar' ? null : form.value.lider_tribu,
     lider_manantial: form.value.lider_manantial === 'Sin asignar' ? null : form.value.lider_manantial,
+    manantial_asignado_id: form.value.manantial_asignado_id, // Incluido en payload
     estado: 'Sin reporte',
     registrado_por: user?.user_metadata?.full_name || user?.email || 'Sistema'
   }
@@ -208,20 +252,60 @@ const submitForm = async () => {
               Asignación de Liderazgo (Opcional)
             </h3>
             
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 gap-3">
+              <!-- Red -->
               <div>
-                <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Tribu</label>
-                <select v-model="form.lider_tribu" @change="form.lider_manantial = 'Sin asignar'" class="w-full text-sm border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 bg-white transition-all">
-                  <option value="Sin asignar">Sin asignar</option>
-                  <option v-for="l in store.lideres.tleaders" :key="l" :value="l">{{ l }}</option>
+                <label class="text-[10px] font-bold text-gray-500 uppercase block mb-1">Red</label>
+                <select v-model="selectedRed" @change="onRedChange" class="w-full text-sm border border-gray-200 rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-corporate bg-white">
+                  <option value="">Seleccione Red</option>
+                  <option>Niños</option>
+                  <option>Jóvenes</option>
+                  <option>Adultos</option>
                 </select>
               </div>
-              <div>
-                <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Manantial</label>
-                <select v-model="form.lider_manantial" :disabled="form.lider_tribu === 'Sin asignar'" class="w-full text-sm border border-gray-200 rounded-lg focus:border-corporate focus:ring-1 focus:ring-corporate outline-none px-3 py-2 bg-white transition-all disabled:opacity-50">
-                  <option value="Sin asignar">Sin asignar</option>
-                  <option v-for="l in availableWLeaders" :key="l" :value="l">{{ l }}</option>
-                </select>
+              
+              <div class="grid grid-cols-2 gap-3">
+                <!-- Tribu -->
+                <div>
+                  <label class="text-[10px] font-bold text-gray-500 uppercase block mb-1">Tribu</label>
+                  <select v-model="form.lider_tribu" @change="onTribuChange" :disabled="!selectedRed" class="w-full text-sm border border-gray-200 rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-corporate bg-white disabled:opacity-50">
+                    <option value="Sin asignar">Sin asignar</option>
+                    <option v-for="l in availableTribes" :key="l" :value="l">{{ l }}</option>
+                  </select>
+                </div>
+                <!-- Líder de Manantial -->
+                <div>
+                  <label class="text-[10px] font-bold text-gray-500 uppercase block mb-1">Líder Manantial</label>
+                  <select v-model="form.lider_manantial" @change="onManantialChange" :disabled="form.lider_tribu === 'Sin asignar'" class="w-full text-sm border border-gray-200 rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-corporate bg-white disabled:opacity-50">
+                    <option value="Sin asignar">Sin asignar</option>
+                    <option v-for="l in availableWLeaders" :key="l" :value="l">{{ l }}</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Lista de Manantiales -->
+            <div v-if="form.lider_manantial !== 'Sin asignar'" class="pt-2">
+              <label class="text-[10px] font-bold text-gray-500 uppercase block mb-2">Manantial Asignado</label>
+              <div class="space-y-2">
+                <div v-for="m in availableManantialesList" :key="m.id" 
+                    @click="form.manantial_asignado_id = m.id"
+                    class="p-2.5 rounded-lg border cursor-pointer flex justify-between items-center transition-all"
+                    :class="form.manantial_asignado_id === m.id ? 'bg-blue-50 border-corporate ring-1 ring-corporate shadow-sm' : 'bg-white border-gray-100 hover:shadow-sm'">
+                  <div class="text-xs">
+                    <div class="font-bold text-gray-800">{{ m.direccion }}</div>
+                    <div class="text-[10px] text-gray-500 mt-0.5">B. {{ m.barrio }} • {{ m.dia_reunion }} {{ m.hora_reunion }}</div>
+                  </div>
+                  <div class="ml-3 shrink-0">
+                    <div v-if="form.manantial_asignado_id === m.id" class="w-5 h-5 bg-corporate text-white rounded-full flex items-center justify-center">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                    </div>
+                    <div v-else class="w-5 h-5 border-2 border-gray-300 rounded-full"></div>
+                  </div>
+                </div>
+                <div v-if="!availableManantialesList.length" class="text-xs text-gray-400 italic text-center p-4 border border-dashed border-gray-200 rounded-lg bg-white">
+                  Este líder no tiene manantiales registrados.
+                </div>
               </div>
             </div>
           </div>
