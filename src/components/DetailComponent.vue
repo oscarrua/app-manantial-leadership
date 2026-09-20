@@ -571,7 +571,12 @@ const formatDate = (dateStr) => {
                       <label class="text-xs text-gray-500 font-bold">Tipo</label>
                       <select v-model="form.tipo_gestion" class="w-full text-sm border border-gray-200 p-2.5 rounded-lg outline-none focus:border-corporate focus:ring-1 focus:ring-corporate bg-white shadow-sm" required>
                         <option value="">Seleccione...</option>
-                        <option>Llamada</option><option>Visita</option><option>Manantial</option><option>Iglesia</option><option>Encuentro</option>
+                        <option>Llamada</option>
+                        <option>Visita</option>
+                        <option>Manantial</option>
+                        <option>Iglesia</option>
+                        <option>Encuentro</option>
+                        <option>Seguimiento consolidación</option>
                       </select>
                     </div>
                   </div>

@@ -44,15 +44,15 @@ const exportToExcel = () => {
     return showToast('No hay datos para exportar', 'error')
   }
 
-  // MODIFICADO: Añadida la columna "Red" al inicio de las cabeceras
-  let csv = 'Red,Tribu,Líder Asignado,Celular del Líder,Dirección,Barrio,Día\n'
+  // 1. Añadimos las nuevas columnas al final de la cabecera
+  let csv = 'Red,Tribu,Líder Asignado,Celular del Líder,Dirección,Barrio,Día,Fecha de Actualización,Actualizado por\n'
   let hasData = false
 
   tribeWLeaders.value.forEach(wleader => {
     const manantiales = getManantiales(wleader.id)
     manantiales.forEach(m => {
       hasData = true
-      const red = wleader.red || 'Sin asignar' // Nuevo campo
+      const red = wleader.red || 'Sin asignar' 
       const tribu = wleader.tribu || 'Sin asignar'
       const lider = wleader.name || 'Sin asignar'
       const celular = m.celular_lider || 'N/A'
@@ -61,8 +61,33 @@ const exportToExcel = () => {
       const barrio = m.barrio ? `"${m.barrio.replace(/"/g, '""').replace(/\n/g, ' ')}"` : 'N/A'
       const dia = m.dia_reunion || 'N/A'
       
-      // MODIFICADO: Inyectando el campo Red en la fila del Excel
-      csv += `"${red}","${tribu}","${lider}","${celular}",${dir},${barrio},"${dia}"\n`
+      // 2. Extraemos y formateamos los nuevos campos para mejor UX
+      let updatedAt = 'N/A'
+      if (m.updated_at) {
+        const dateObj = new Date(m.updated_at)
+        
+        // Formateamos forzando 24 horas (hour12: false) para que Excel lo reconozca como Fecha nativa
+        const formatter = new Intl.DateTimeFormat('es-CO', {
+          timeZone: 'America/Bogota',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false // CLAVE: Evita el "p. m." que rompe el parser de Excel
+        })
+        
+        // Dependiendo del navegador, Intl puede devolver comas, las limpiamos para asegurar compatibilidad
+        const formattedDate = formatter.format(dateObj).replace(',', '')
+        
+        // Envolvemos en comillas para respetar el estándar CSV
+        updatedAt = `"${formattedDate}"`
+      }
+      
+      const actualizadoPor = m.actualizado_por ? `"${m.actualizado_por.replace(/"/g, '""')}"` : 'N/A'
+      
+      // 3. Inyectamos los campos al final de cada fila CSV
+      csv += `"${red}","${tribu}","${lider}","${celular}",${dir},${barrio},"${dia}",${updatedAt},${actualizadoPor}\n`
     })
   })
 
