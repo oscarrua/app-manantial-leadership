@@ -1,14 +1,43 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { supabase } from '../supabase'
+import { computed } from 'vue'
 
 export const useMainStore = defineStore('main', () => {
   const consolidaciones = ref([])
   const manantiales = ref([])
   const lideres = ref({ tleaders: [], wleaders: [], allLeadersData: [] })
-  const isLoading = ref(false)
-  
+  const isLoading = ref(false)  
   const userPermissions = ref({ puede_cerrar: false, puede_asignar: false, puede_crear: false, rol: 'lider_basico' })
+
+  // GETTERS
+  const getTribesByRed = computed(() => {
+    return (red) => {
+      if (!red) return []
+      return [...new Set(lideres.value.allLeadersData
+        .filter(r => r[3] === red)
+        .map(r => r[1]))].sort()
+    }
+  })
+
+  const getWLeadersByTribeAndRed = computed(() => {
+    return (tribu, red) => {
+      if (!tribu || tribu === 'Sin asignar') return []
+      return lideres.value.allLeadersData
+        .filter(r => (r[1] || 'Sin asignar') === tribu && r[3] === red)
+        .map(r => ({ name: r[0], id: r[2] }))
+        .sort((a, b) => a.name.localeCompare(b.name))
+    }
+  })
+
+  const getManantialesByLeader = computed(() => {
+    return (leaderName) => {
+      if (!leaderName || leaderName === 'Sin asignar') return []
+      const currentLeader = lideres.value.allLeadersData.find(r => r[0] === leaderName)
+      if (!currentLeader) return []
+      return manantiales.value.filter(m => m.lider_id === currentLeader[2])
+    }
+  })
 
   async function loadUserPermissions(email) {
     const { data } = await supabase
@@ -62,5 +91,9 @@ export const useMainStore = defineStore('main', () => {
     isLoading.value = false
   }
 
-  return { consolidaciones, manantiales, lideres, isLoading, userPermissions, loadUserPermissions, fetchData }
+  return { 
+    consolidaciones, manantiales, lideres, isLoading, userPermissions, 
+    loadUserPermissions, fetchData,
+    getTribesByRed, getWLeadersByTribeAndRed, getManantialesByLeader
+  }
 })
