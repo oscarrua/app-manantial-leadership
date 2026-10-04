@@ -16,8 +16,8 @@ const { showToast } = useToast()
 const { showConfirm } = useConfirm()
 
 // === ESTADO Y OPCIONES ===
+// Se eliminó isUpdatingObservacion
 const isUpdatingEstado = ref(false)
-const isUpdatingObservacion = ref(false)
 
 const estadosAbiertos = ['Sin reporte', 'En proceso']
 const estadosCierre = [
@@ -72,31 +72,12 @@ const updateEstado = async (event) => {
   
   isUpdatingEstado.value = false
 }
-
-const updateObservacion = async () => {
-  isUpdatingObservacion.value = true
-  const { error } = await supabase
-    .from('consolidaciones')
-    .update({ observacion: props.visitor.observacion })
-    .eq('id', props.visitor.id)
-
-  if (!error) {
-    showToast('Observación actualizada correctamente', 'success')
-    // Actualizamos la fecha de modificación global
-    const now = new Date().toISOString()
-    await supabase.from('consolidaciones').update({ updated_at: now }).eq('id', props.visitor.id)
-    props.visitor.updated_at = now
-  } else {
-    showToast(`Error al actualizar: ${error.message}`, 'error')
-  }
-  
-  isUpdatingObservacion.value = false
-}
+// Se eliminó por completo la función updateObservacion para evitar alterar el updated_at desde aquí
 </script>
 
 <template>
   <div class="space-y-3">
-    <!-- Acordeón 1: Consolidación y Estado -->
+    <!-- Acordeón 1: Consolidación y Estado (Sin cambios) -->
     <details name="acordeon-detalle" class="group bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <summary class="p-4 font-bold text-gray-700 cursor-pointer flex justify-between items-center transition-all group-open:bg-corporate group-open:text-white hover:bg-gray-50 group-open:hover:bg-corporate group-open:hover:text-white">
         <div class="flex items-center gap-2">
@@ -152,7 +133,7 @@ const updateObservacion = async () => {
       </div>
     </details>
 
-    <!-- Acordeón 2: Datos Personales -->
+    <!-- Acordeón 2: Datos Personales (Con Observación de Solo Lectura agregada al final) -->
     <details name="acordeon-detalle" class="group bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <summary class="p-4 font-bold text-gray-700 cursor-pointer flex justify-between items-center transition-all group-open:bg-corporate group-open:text-white hover:bg-gray-50 group-open:hover:bg-corporate group-open:hover:text-white">
         <div class="flex items-center gap-2">
@@ -192,34 +173,11 @@ const updateObservacion = async () => {
           <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">Petición</span>
           <span class="text-sm font-medium italic text-gray-700">{{ visitor.peticion || 'N/A' }}</span>
         </div>
-      </div>
-    </details>
-
-    <!-- Acordeón 3: Observación -->
-    <details name="acordeon-detalle" class="group bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-      <summary class="p-4 font-bold text-gray-700 cursor-pointer flex justify-between items-center transition-all group-open:bg-corporate group-open:text-white hover:bg-gray-50 group-open:hover:bg-corporate group-open:hover:text-white">
-        <div class="flex items-center gap-2">
-          <svg class="w-5 h-5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-          <span>Observación</span>
+        <!-- Observación reubicada y como solo lectura -->
+        <div class="col-span-2 pt-2 border-t border-gray-100">
+          <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">Observación</span>
+          <span class="text-sm font-medium text-gray-700 whitespace-pre-wrap">{{ visitor.observacion || 'N/A' }}</span>
         </div>
-        <svg class="w-5 h-5 transition-transform duration-300 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-      </summary>
-      
-      <div class="p-5 bg-gray-50 border-t border-gray-100">
-        <textarea
-          v-model="visitor.observacion"
-          rows="3"
-          class="w-full text-sm border border-gray-200 p-3 rounded-lg outline-none focus:border-corporate focus:ring-1 focus:ring-corporate bg-white resize-none style-scrollbar shadow-sm mb-3 transition-colors"
-          placeholder="Escribe o actualiza la observación interna del visitante..."
-        ></textarea>
-        <button
-          @click="updateObservacion"
-          :disabled="isUpdatingObservacion"
-          class="w-full bg-corporate text-white font-bold text-sm py-2.5 rounded-lg hover:bg-[#003366] transition disabled:opacity-50 flex justify-center items-center gap-2 shadow-sm active:scale-95"
-        >
-          <div v-if="isUpdatingObservacion" class="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white"></div>
-          {{ isUpdatingObservacion ? 'Guardando...' : 'Actualizar Observación' }}
-        </button>
       </div>
     </details>
   </div>
